@@ -3,8 +3,9 @@ export interface Point {
     y: number;
 }
 
-export type XCoord = number | 'center' | 'left' | 'right';
-export type YCoord = number | 'center' | 'top' | 'bottom';
+export type XCoord = number | 'center' | 'left' | 'right' | `${number}%`;
+export type YCoord = number | 'center' | 'top' | 'bottom' | `${number}%`;
+export type SizeCoord = number | `${number}%`;
 
 export interface SemanticPoint {
     x: XCoord;
@@ -48,7 +49,7 @@ export interface WriteTextOptions {
     text: string;
     x: XCoord | SemanticPoint;
     y?: YCoord;
-    fontSize?: number;
+    fontSize?: SizeCoord;
     fontFamily?: string;
     color?: string;
     textAlign?: CanvasTextAlign;
@@ -63,9 +64,9 @@ export interface WriteParagraphOptions {
     text: string;
     x: XCoord | SemanticPoint;
     y?: YCoord;
-    width: number;
+    width: SizeCoord;
     lineHeight?: number;
-    fontSize?: number;
+    fontSize?: SizeCoord;
     fontFamily?: string;
     color?: string;
     textAlign?: CanvasTextAlign;
@@ -77,9 +78,9 @@ export interface FillRectOptions {
     id?: string;
     x: XCoord | SemanticPoint;
     y?: YCoord;
-    width: number;
-    height: number;
-    radius?: number;
+    width: SizeCoord;
+    height: SizeCoord;
+    radius?: SizeCoord;
     fillColor: string;
 }
 
@@ -93,19 +94,19 @@ export interface DrawRectOptions {
     id?: string;
     x: XCoord | SemanticPoint;
     y?: YCoord;
-    width: number;
-    height: number;
+    width: SizeCoord;
+    height: SizeCoord;
     color?: string;
     fillColor?: string;
-    radius?: number;
+    radius?: SizeCoord;
 }
 
 export interface DrawDiamondOptions {
     id?: string;
     cx: XCoord | SemanticPoint;
     cy?: YCoord;
-    width: number;
-    height: number;
+    width: SizeCoord;
+    height: SizeCoord;
     color?: string;
     fillColor?: string;
 }
@@ -122,7 +123,7 @@ export interface DrawRegularPolygonOptions {
     cx: XCoord | SemanticPoint;
     cy?: YCoord;
     sides?: number;
-    radius?: number;
+    radius?: SizeCoord;
     rotation?: number;
     color?: string;
     fillColor?: string;
@@ -153,7 +154,7 @@ export interface DrawCircleOptions {
     id?: string;
     cx: XCoord | SemanticPoint;
     cy?: YCoord;
-    radius: number;
+    radius: SizeCoord;
     color?: string;
     fillColor?: string;
     startAngle?: number;
@@ -164,8 +165,8 @@ export interface DrawEllipseOptions {
     id?: string;
     cx: XCoord | SemanticPoint;
     cy?: YCoord;
-    radiusX: number;
-    radiusY: number;
+    radiusX: SizeCoord;
+    radiusY: SizeCoord;
     rotation?: number;
     color?: string;
     fillColor?: string;
@@ -175,7 +176,7 @@ export interface DrawArcOptions {
     id?: string;
     cx: XCoord | SemanticPoint;
     cy?: YCoord;
-    radius: number;
+    radius: SizeCoord;
     startAngle: number;
     endAngle: number;
     color?: string;
@@ -187,8 +188,8 @@ export interface DrawImageOptions {
     src: string | HTMLImageElement;
     x: XCoord | SemanticPoint;
     y?: YCoord;
-    width?: number;
-    height?: number;
+    width?: SizeCoord;
+    height?: SizeCoord;
     opacity?: number;
 }
 
@@ -196,8 +197,8 @@ export interface DrawGradientRectOptions {
     id?: string;
     x: XCoord | SemanticPoint;
     y?: YCoord;
-    width: number;
-    height: number;
+    width: SizeCoord;
+    height: SizeCoord;
     colors: string[];
     direction?: 'horizontal' | 'vertical' | 'diagonal';
 }
@@ -206,8 +207,8 @@ export interface DrawGridAxesOptions {
     id?: string;
     x: XCoord | SemanticPoint;
     y?: YCoord;
-    width: number;
-    height: number;
+    width: SizeCoord;
+    height: SizeCoord;
     step?: number;
     color?: string;
 }
@@ -218,9 +219,9 @@ export interface DrawCodeBlockOptions {
     language?: string;
     x: XCoord | SemanticPoint;
     y?: YCoord;
-    width: number;
-    height?: number;
-    fontSize?: number;
+    width: SizeCoord;
+    height?: SizeCoord;
+    fontSize?: SizeCoord;
 }
 
 export interface DrawTableOptions {
@@ -236,15 +237,27 @@ export interface DrawTableOptions {
     altRowBgColor?: string;
     textColor?: string;
     borderColor?: string;
-    fontSize?: number;
+    fontSize?: SizeCoord;
     fontFamily?: string;
 }
 
 export interface BoardOptions {
-    width?: number;
-    height?: number;
+    width?: SizeCoord;
+    height?: SizeCoord;
     speed?: number;
     background?: string;
     hiDpi?: boolean;
     fontFamily?: string;
 }
+
+export interface WriteMathOptions {
+    id?: string;
+    formula: string;
+    x: XCoord | SemanticPoint;
+    y?: YCoord;
+    fontSize?: SizeCoord;
+    color?: string;
+    fontFamily?: string;
+    displayMode?: boolean;
+}
+

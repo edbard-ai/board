@@ -21,10 +21,13 @@ import {
     DrawCodeBlockOptions,
     DrawTableOptions,
     BoardOptions,
+    WriteMathOptions,
     XCoord,
     YCoord,
-    SemanticPoint
+    SemanticPoint,
+    SizeCoord
 } from './types';
+import katex from 'katex';
 import {
     getSmoothSplinePoints,
     getRectPathPoints,
@@ -62,6 +65,7 @@ export type {
     DrawCodeBlockOptions,
     DrawTableOptions,
     BoardOptions,
+    WriteMathOptions,
     XCoord,
     YCoord,
     SemanticPoint
@@ -148,8 +152,58 @@ export class Board {
         return `_id_${this.idCounter}`;
     }
 
+
+    private resolveWidth(w: SizeCoord): number {
+        if (typeof w === 'number') return w;
+        if (typeof w === 'string' && w.endsWith('%')) {
+            const val = parseFloat(w);
+            return !isNaN(val) ? (val / 100) * this._logicalWidth : 0;
+        }
+        return 0;
+    }
+
+    private resolveHeight(h: SizeCoord): number {
+        if (typeof h === 'number') return h;
+        if (typeof h === 'string' && h.endsWith('%')) {
+            const val = parseFloat(h);
+            return !isNaN(val) ? (val / 100) * this._logicalHeight : 0;
+        }
+        return 0;
+    }
+
+    private resolveSize(s: SizeCoord | string): number {
+        if (typeof s === 'number') return s;
+        if (typeof s === 'string') {
+            const str = s.trim();
+            if (str.endsWith('%')) {
+                const val = parseFloat(str);
+                const ref = Math.min(this._logicalWidth, this._logicalHeight);
+                return !isNaN(val) ? (val / 100) * ref : 0;
+            }
+            if (str.endsWith('vw')) {
+                const val = parseFloat(str);
+                return !isNaN(val) ? (val / 100) * this._logicalWidth : 0;
+            }
+            if (str.endsWith('vh')) {
+                const val = parseFloat(str);
+                return !isNaN(val) ? (val / 100) * this._logicalHeight : 0;
+            }
+            if (str.endsWith('px')) {
+                const val = parseFloat(str);
+                return !isNaN(val) ? val : 0;
+            }
+            const val = parseFloat(str);
+            return !isNaN(val) ? val : 0;
+        }
+        return 0;
+    }
+
     private resolveX(x: XCoord): number {
         if (typeof x === 'number') return x;
+        if (typeof x === 'string' && x.endsWith('%')) {
+            const val = parseFloat(x);
+            return !isNaN(val) ? (val / 100) * this._logicalWidth : 0;
+        }
         if (x === 'center') return this._logicalWidth / 2;
         if (x === 'left') return 0;
         if (x === 'right') return this._logicalWidth;
@@ -158,6 +212,10 @@ export class Board {
 
     private resolveY(y: YCoord): number {
         if (typeof y === 'number') return y;
+        if (typeof y === 'string' && y.endsWith('%')) {
+            const val = parseFloat(y);
+            return !isNaN(val) ? (val / 100) * this._logicalHeight : 0;
+        }
         if (y === 'center') return this._logicalHeight / 2;
         if (y === 'top') return 0;
         if (y === 'bottom') return this._logicalHeight;
@@ -306,7 +364,7 @@ export class Board {
         text,
         x,
         y = 0,
-        fontSize = 24,
+        fontSize: rawFontSize = 24,
         fontFamily = this.fontFamily,
         color,
         textAlign,
@@ -319,7 +377,7 @@ export class Board {
         const { posX, posY } = this.resolveXY(x, y);
         const itemColor = color || this.color;
         const font = fontFamily || this.fontFamily;
-        const item: DrawItem = { type: 'text', id: itemId, text, x: posX, y: posY, fontSize, fontFamily: font, color: itemColor, textAlign, textBaseline, fontWeight, fontStyle, maxWidth };
+        const item: DrawItem = { type: 'text', id: itemId, text, x: posX, y: posY, fontSize: this.resolveSize(rawFontSize), fontFamily: font, color: itemColor, textAlign, textBaseline, fontWeight, fontStyle, maxWidth };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -337,7 +395,7 @@ export class Board {
         y = 0,
         width,
         lineHeight = 1.5,
-        fontSize = 24,
+        fontSize: rawFontSize = 24,
         fontFamily = this.fontFamily,
         color,
         textAlign,
@@ -348,7 +406,7 @@ export class Board {
         const { posX, posY } = this.resolveXY(x, y);
         const itemColor = color || this.color;
         const font = fontFamily || this.fontFamily;
-        const item: DrawItem = { type: 'paragraph', id: itemId, text, x: posX, y: posY, width, lineHeight, fontSize, fontFamily: font, color: itemColor, textAlign, fontWeight, fontStyle };
+        const item: DrawItem = { type: 'paragraph', id: itemId, text, x: posX, y: posY, width: this.resolveWidth(width), lineHeight, fontSize: this.resolveSize(rawFontSize), fontFamily: font, color: itemColor, textAlign, fontWeight, fontStyle };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -360,7 +418,7 @@ export class Board {
     fillRect({ id, x, y = 0, width, height, radius = 12, fillColor }: FillRectOptions): string {
         const itemId = id || this.generateId();
         const { posX, posY } = this.resolveXY(x, y);
-        const item: DrawItem = { type: 'fillRect', id: itemId, x: posX, y: posY, width, height, radius, fillColor };
+        const item: DrawItem = { type: 'fillRect', id: itemId, x: posX, y: posY, width: this.resolveWidth(width), height: this.resolveHeight(height), radius: radius ? this.resolveSize(radius) : 0, fillColor };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -372,7 +430,7 @@ export class Board {
     drawGradientRect({ id, x, y = 0, width, height, colors, direction = 'vertical' }: DrawGradientRectOptions): string {
         const itemId = id || this.generateId();
         const { posX, posY } = this.resolveXY(x, y);
-        const item: DrawItem = { type: 'gradientRect', id: itemId, x: posX, y: posY, width, height, colors, direction };
+        const item: DrawItem = { type: 'gradientRect', id: itemId, x: posX, y: posY, width: this.resolveWidth(width), height: this.resolveHeight(height), colors, direction };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -406,7 +464,7 @@ export class Board {
         const itemId = id || this.generateId();
         const { posX, posY } = this.resolveXY(x, y);
         const strokeColor = color || this.color;
-        const item: DrawItem = { type: 'drawRect', id: itemId, x: posX, y: posY, width, height, color: strokeColor, fillColor, radius, lineWidth: this.lineWidth };
+        const item: DrawItem = { type: 'drawRect', id: itemId, x: posX, y: posY, width: this.resolveWidth(width), height: this.resolveHeight(height), color: strokeColor, fillColor, radius: radius ? this.resolveSize(radius) : undefined, lineWidth: this.lineWidth };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -428,7 +486,7 @@ export class Board {
         const itemId = id || this.generateId();
         const { posX, posY } = this.resolveXY(cx, cy);
         const strokeColor = color || this.color;
-        const item: DrawItem = { type: 'circle', id: itemId, cx: posX, cy: posY, radius, color: strokeColor, fillColor, startAngle, endAngle, lineWidth: this.lineWidth };
+        const item: DrawItem = { type: 'circle', id: itemId, cx: posX, cy: posY, radius: this.resolveSize(radius), color: strokeColor, fillColor, startAngle, endAngle, lineWidth: this.lineWidth };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -450,7 +508,7 @@ export class Board {
         const itemId = id || this.generateId();
         const { posX, posY } = this.resolveXY(cx, cy);
         const strokeColor = color || this.color;
-        const item: DrawItem = { type: 'ellipse', id: itemId, cx: posX, cy: posY, radiusX, radiusY, rotation, color: strokeColor, fillColor, lineWidth: this.lineWidth };
+        const item: DrawItem = { type: 'ellipse', id: itemId, cx: posX, cy: posY, radiusX: this.resolveWidth(radiusX), radiusY: this.resolveHeight(radiusY), rotation, color: strokeColor, fillColor, lineWidth: this.lineWidth };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -472,7 +530,7 @@ export class Board {
         const itemId = id || this.generateId();
         const { posX, posY } = this.resolveXY(cx, cy);
         const strokeColor = color || this.color;
-        const item: DrawItem = { type: 'arc', id: itemId, cx: posX, cy: posY, radius, startAngle, endAngle, color: strokeColor, counterClockwise, lineWidth: this.lineWidth };
+        const item: DrawItem = { type: 'arc', id: itemId, cx: posX, cy: posY, radius: this.resolveSize(radius), startAngle, endAngle, color: strokeColor, counterClockwise, lineWidth: this.lineWidth };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -492,7 +550,7 @@ export class Board {
     }: DrawImageOptions): string {
         const itemId = id || this.generateId();
         const { posX, posY } = this.resolveXY(x, y);
-        const item: DrawItem = { type: 'image', id: itemId, src, x: posX, y: posY, width, height, opacity };
+        const item: DrawItem = { type: 'image', id: itemId, src, x: posX, y: posY, width: width !== undefined ? this.resolveWidth(width) : undefined, height: height !== undefined ? this.resolveHeight(height) : undefined, opacity };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -501,11 +559,57 @@ export class Board {
         return itemId;
     }
 
-    drawPointer(x: XCoord, y: YCoord, color = '#ff3366', size = 8, id?: string): string {
+    writeMath({
+        id,
+        formula,
+        x,
+        y = 0,
+        fontSize = 24,
+        color = '#ffffff',
+        fontFamily,
+        displayMode = true
+    }: WriteMathOptions): string {
+        const itemId = id || this.generateId();
+        const { posX, posY } = this.resolveXY(x, y);
+        const resolvedSize = this.resolveSize(fontSize);
+        const activeFont = fontFamily || this.fontFamily;
+        const htmlContent = katex.renderToString(formula, {
+            displayMode: displayMode,
+            throwOnError: false
+        });
+
+        const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300">
+            <foreignObject width="100%" height="100%">
+                <div xmlns="http://www.w3.org/1999/xhtml" style="color:${color};font-size:${resolvedSize}px;font-family:${activeFont};line-height:1.2;display:inline-block;">
+                    ${htmlContent}
+                </div>
+            </foreignObject>
+        </svg>`;
+
+        const img = new Image();
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+
+        return this.drawImage({
+            id: itemId,
+            src: img,
+            x: posX,
+            y: posY
+        });
+    }
+
+    drawMath(options: WriteMathOptions): string {
+        return this.writeMath(options);
+    }
+
+    writeFormula(options: WriteMathOptions): string {
+        return this.writeMath(options);
+    }
+
+    drawPointer(x: XCoord, y: YCoord, color = '#ff3366', size: SizeCoord = 8, id?: string): string {
         const itemId = id || this.generateId();
         const posX = this.resolveX(x);
         const posY = this.resolveY(y);
-        const item: DrawItem = { type: 'pointer', id: itemId, x: posX, y: posY, color, size };
+        const item: DrawItem = { type: 'pointer', id: itemId, x: posX, y: posY, color, size: this.resolveSize(size) };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -514,11 +618,11 @@ export class Board {
         return itemId;
     }
 
-    highlightRect(x: XCoord, y: YCoord, width: number, height: number, color = 'rgba(255, 235, 59, 0.4)', id?: string): string {
+    highlightRect(x: XCoord, y: YCoord, width: SizeCoord, height: SizeCoord, color = 'rgba(255, 235, 59, 0.4)', id?: string): string {
         const itemId = id || this.generateId();
         const posX = this.resolveX(x);
         const posY = this.resolveY(y);
-        const item: DrawItem = { type: 'highlightRect', id: itemId, x: posX, y: posY, width, height, color };
+        const item: DrawItem = { type: 'highlightRect', id: itemId, x: posX, y: posY, width: this.resolveWidth(width), height: this.resolveHeight(height), color };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -530,18 +634,20 @@ export class Board {
     drawGridAxes({ id, x, y = 0, width, height, step = 50, color = '#333' }: DrawGridAxesOptions): string {
         const itemId = id || this.generateId();
         const { posX, posY } = this.resolveXY(x, y);
+        const w = this.resolveWidth(width);
+        const h = this.resolveHeight(height);
         const strokeColor = color;
         const originalWidth = this.lineWidth;
         this.setLineWidth(1);
-        for (let i = 0; i <= width; i += step) {
-            this.drawLine({ x1: posX + i, y1: posY, x2: posX + i, y2: posY + height, color: strokeColor });
+        for (let i = 0; i <= w; i += step) {
+            this.drawLine({ x1: posX + i, y1: posY, x2: posX + i, y2: posY + h, color: strokeColor });
         }
-        for (let i = 0; i <= height; i += step) {
-            this.drawLine({ x1: posX, y1: posY + i, x2: posX + width, y2: posY + i, color: strokeColor });
+        for (let i = 0; i <= h; i += step) {
+            this.drawLine({ x1: posX, y1: posY + i, x2: posX + w, y2: posY + i, color: strokeColor });
         }
         this.setLineWidth(2);
-        this.drawLine({ x1: posX + width/2, y1: posY, x2: posX + width/2, y2: posY + height, color: '#666' });
-        this.drawLine({ x1: posX, y1: posY + height/2, x2: posX + width, y2: posY + height/2, color: '#666' });
+        this.drawLine({ x1: posX + w / 2, y1: posY, x2: posX + w / 2, y2: posY + h, color: '#666' });
+        this.drawLine({ x1: posX, y1: posY + h / 2, x2: posX + w, y2: posY + h / 2, color: '#666' });
         this.setLineWidth(originalWidth);
         return itemId;
     }
@@ -550,8 +656,10 @@ export class Board {
         const itemId = id || this.generateId();
         const { posX, posY } = this.resolveXY(x, y);
         const lines = code.split('\n');
-        const h = height > 0 ? height : lines.length * (fontSize * 1.5) + (language ? 50 : 30);
-        const item: DrawItem = { type: 'codeBlock', id: itemId, code, language, x: posX, y: posY, width, height: h, fontSize };
+        const resolvedFontSize = this.resolveSize(fontSize);
+        const resolvedHeight = this.resolveHeight(height);
+        const h = resolvedHeight > 0 ? resolvedHeight : lines.length * (resolvedFontSize * 1.5) + (language ? 50 : 30);
+        const item: DrawItem = { type: 'codeBlock', id: itemId, code, language, x: posX, y: posY, width: this.resolveWidth(width), height: h, fontSize: resolvedFontSize };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -588,7 +696,7 @@ export class Board {
             altRowBgColor,
             textColor,
             borderColor,
-            fontSize,
+            fontSize: this.resolveSize(fontSize),
             fontFamily
         };
 
@@ -606,7 +714,7 @@ export class Board {
     drawDiamond({ id, cx, cy = 0, width, height, color = '#000000', fillColor }: DrawDiamondOptions): string {
         const itemId = id || this.generateId();
         const { posX, posY } = this.resolveXY(cx, cy);
-        const points = getDiamondPolygonPoints({ x: posX, y: posY }, width, height);
+        const points = getDiamondPolygonPoints({ x: posX, y: posY }, this.resolveWidth(width), this.resolveHeight(height));
         if (fillColor) {
             this.fillPolygon({ points, fillColor });
         }
@@ -630,7 +738,7 @@ export class Board {
         const itemId = id || this.generateId();
         const { posX, posY } = this.resolveXY(cx, cy);
         if (sides < 3) return itemId;
-        const points = getRegularPolygonPoints({ x: posX, y: posY }, sides, radius, rotation);
+        const points = getRegularPolygonPoints({ x: posX, y: posY }, sides, this.resolveSize(radius), rotation);
         return this.drawPolygon({ id: itemId, points, color, fillColor });
     }
 

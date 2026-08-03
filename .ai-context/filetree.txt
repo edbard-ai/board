@@ -1,12 +1,12 @@
 📄 AGENTS.md
 📄 CLAUDE.md
+📄 LICENSE
 📄 README.md
 📁 app
 │   📄 favicon.ico
 │   📄 globals.css
 │   📄 layout.tsx
 │   📄 page.tsx
-📄 describe_image.py
 📄 eslint.config.mjs
 📁 lib
 │   📁 board
@@ -18,17 +18,12 @@
 │   │   │   📄 transitions.ts
 │   │   📄 animation.ts
 │   │   📄 board.ts
-│   │   📁 examples
-│   │   │   📄 binarySearch.ts
-│   │   │   📄 binaryTreeSearch.ts
-│   │   │   📄 engineeringProblem.ts
-│   │   │   📄 index.ts
-│   │   │   📄 orthographic.ts
-│   │   │   📄 perspective.ts
+│   │   📄 board3d.ts
 │   │   📄 index.ts
 │   │   📄 scene3d.ts
 │   │   📄 shapes.ts
 │   │   📄 types.ts
+│   │   📄 types3d.ts
 📄 next.config.ts
 📄 package-lock.json
 📄 package.json
@@ -41,3 +36,5 @@
 │   📄 vercel.svg
 │   📄 window.svg
 📄 tsconfig.json
+📄 tsconfig.lib.json
+📄 tsup.config.ts

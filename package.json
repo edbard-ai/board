@@ -1,28 +1,68 @@
 {
   "name": "board",
-  "version": "0.1.0",
-  "private": true,
+  "version": "1.0.0",
+  "description": "A high-performance 2D and 3D interactive canvas animation & visualizer library.",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "keywords": [
+    "canvas",
+    "animation",
+    "diagrams",
+    "threejs",
+    "3d",
+    "board",
+    "visualizer",
+    "typescript"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:lib": "tsup",
+    "prepublishOnly": "npm run build:lib",
     "start": "next start",
     "lint": "eslint"
   },
+  "peerDependencies": {
+    "three": "^0.185.0"
+  },
+  "peerDependenciesMeta": {
+    "three": {
+      "optional": true
+    }
+  },
   "dependencies": {
-    "@types/three": "^0.185.3",
+    "katex": "^0.18.1",
     "next": "16.2.12",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "three": "^0.185.1"
+    "three": "^0.185.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/katex": "^0.16.8",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.185.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "tailwindcss": "^4",
+    "tsup": "^8.5.1",
     "typescript": "^5"
   }
 }

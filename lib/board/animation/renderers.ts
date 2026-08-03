@@ -201,32 +201,37 @@ export function renderCodeBlock(ctx: CanvasRenderingContext2D, item: Extract<Dra
     ctx.save();
     const fontSize = item.fontSize ?? 16;
     const lines = item.code.split('\n');
-    const h = item.height > 0 ? item.height : lines.length * (fontSize * 1.5) + (item.language ? 50 : 30);
+    const headerHeight = item.language ? fontSize * 2.2 : fontSize * 1.2;
+    const paddingX = Math.max(10, fontSize * 0.8);
+    const lineHeight = fontSize * 1.5;
+    const h = item.height > 0 ? item.height : lines.length * lineHeight + headerHeight + fontSize * 0.4;
     ctx.fillStyle = '#1e1e1e';
     ctx.beginPath();
+    const radius = Math.max(4, fontSize * 0.5);
     if (ctx.roundRect) {
-        ctx.roundRect(item.x, item.y, item.width, h, 8);
+        ctx.roundRect(item.x, item.y, item.width, h, radius);
     } else {
         ctx.rect(item.x, item.y, item.width, h);
     }
     ctx.fill();
     if (item.language) {
-        ctx.font = `14px monospace`;
+        const langFontSize = Math.max(10, fontSize * 0.85);
+        ctx.font = `${langFontSize}px monospace`;
         ctx.fillStyle = '#888';
-        ctx.fillText(item.language, item.x + 15, item.y + 25);
+        ctx.fillText(item.language, item.x + paddingX, item.y + langFontSize * 1.6);
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(item.x, item.y + 35);
-        ctx.lineTo(item.x + item.width, item.y + 35);
+        ctx.moveTo(item.x, item.y + headerHeight);
+        ctx.lineTo(item.x + item.width, item.y + headerHeight);
         ctx.stroke();
     }
-    let currY = item.y + (item.language ? 60 : 30);
+    let currY = item.y + headerHeight + fontSize * 1.1;
     ctx.font = `${fontSize}px monospace`;
     ctx.fillStyle = '#d4d4d4';
     lines.forEach(line => {
-        ctx.fillText(line, item.x + 15, currY);
-        currY += fontSize * 1.5;
+        ctx.fillText(line, item.x + paddingX, currY);
+        currY += lineHeight;
     });
     ctx.restore();
 }

@@ -1,6 +1,5 @@
 "use client"
-import { Board, runBinaryTreeSearchExample } from "@/lib/board"
-import { runEngineeringProblemExample } from "@/lib/board/examples/engineeringProblem"
+import { Board } from "@/lib/board"
 import { useEffect } from "react"
 
 export default function Home() {
@@ -17,7 +16,14 @@ export default function Home() {
         fontFamily: "'Playpen Sans', sans-serif"
       })
 
-      runBinaryTreeSearchExample(board)
+      board.writeText({
+        text: "Board Whiteboard & Animation Library",
+        x: "center",
+        y: "center",
+        fontSize: 32,
+        color: "#4dd0e1",
+        textAlign: "center"
+      })
     }
 
     if (document.fonts) {
