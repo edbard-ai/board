@@ -261,3 +261,30 @@ export interface WriteMathOptions {
     displayMode?: boolean;
 }
 
+export type BoardScriptCommand =
+    | { action: "text"; text: string; x: XCoord; y?: YCoord; fontSize?: SizeCoord; fontFamily?: string; color?: string; textAlign?: CanvasTextAlign; fontWeight?: string; fontStyle?: string }
+    | { action: "paragraph"; text: string; x: XCoord; y?: YCoord; width: SizeCoord; lineHeight?: number; fontSize?: SizeCoord; fontFamily?: string; color?: string; textAlign?: CanvasTextAlign; fontWeight?: string; fontStyle?: string }
+    | { action: "line"; x1: XCoord; y1: YCoord; x2: XCoord; y2: YCoord; color?: string; lineDash?: number[] }
+    | { action: "rect"; x: XCoord; y?: YCoord; width: SizeCoord; height: SizeCoord; color?: string; fillColor?: string; radius?: SizeCoord }
+    | { action: "fillRect"; x: XCoord; y?: YCoord; width: SizeCoord; height: SizeCoord; fillColor: string; radius?: SizeCoord }
+    | { action: "circle"; cx: XCoord; cy?: YCoord; radius: SizeCoord; color?: string; fillColor?: string }
+    | { action: "ellipse"; cx: XCoord; cy?: YCoord; radiusX: SizeCoord; radiusY: SizeCoord; rotation?: number; color?: string; fillColor?: string }
+    | { action: "arrow"; x1: XCoord; y1: YCoord; x2: XCoord; y2: YCoord; color?: string; headSize?: number }
+    | { action: "image"; src: string; x: XCoord; y?: YCoord; width?: SizeCoord; height?: SizeCoord; opacity?: number }
+    | { action: "codeBlock"; code: string; language?: string; x: XCoord; y?: YCoord; width: SizeCoord; height?: SizeCoord; fontSize?: SizeCoord }
+    | { action: "table"; data: string[][]; x: XCoord; y?: YCoord; cellWidth?: number; cellHeight?: number; headerBgColor?: string; headerTextColor?: string; rowBgColor?: string; altRowBgColor?: string; textColor?: string; borderColor?: string; fontSize?: SizeCoord; fontFamily?: string }
+    | { action: "math"; formula: string; x: XCoord; y?: YCoord; fontSize?: SizeCoord; color?: string; fontFamily?: string; displayMode?: boolean }
+    | { action: "polygon"; points: SemanticPoint[]; color?: string; fillColor?: string }
+    | { action: "diamond"; cx: XCoord; cy?: YCoord; width: SizeCoord; height: SizeCoord; color?: string; fillColor?: string }
+    | { action: "gridAxes"; x: XCoord; y?: YCoord; width: SizeCoord; height: SizeCoord; step?: number; color?: string }
+    | { action: "gradientRect"; x: XCoord; y?: YCoord; width: SizeCoord; height: SizeCoord; colors: string[]; direction?: "horizontal" | "vertical" | "diagonal" }
+    | { action: "pointer"; x: XCoord; y: YCoord; color?: string; size?: SizeCoord }
+    | { action: "highlight"; x: XCoord; y: YCoord; width: SizeCoord; height: SizeCoord; color?: string }
+    | { action: "wait"; duration: number }
+    | { action: "clear" }
+    | { action: "slideOutLeft"; duration?: number }
+    | { action: "setColor"; color: string }
+    | { action: "setLineWidth"; width: number }
+    | { action: "setSpeed"; speed: number }
+    | { action: "setBackground"; color: string };
+

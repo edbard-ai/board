@@ -25,7 +25,8 @@ import {
     XCoord,
     YCoord,
     SemanticPoint,
-    SizeCoord
+    SizeCoord,
+    BoardScriptCommand
 } from './types';
 import katex from 'katex';
 import {
@@ -68,7 +69,8 @@ export type {
     WriteMathOptions,
     XCoord,
     YCoord,
-    SemanticPoint
+    SemanticPoint,
+    BoardScriptCommand
 };
 
 export class Board {
@@ -579,6 +581,9 @@ export class Board {
         });
 
         const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300">
+            <style>
+                .katex-mathml { display: none; }
+            </style>
             <foreignObject width="100%" height="100%">
                 <div xmlns="http://www.w3.org/1999/xhtml" style="color:${color};font-size:${resolvedSize}px;font-family:${activeFont};line-height:1.2;display:inline-block;">
                     ${htmlContent}
@@ -796,4 +801,88 @@ export class Board {
 
     clearWithSlideLeft = this.slideOutLeft;
     slideLeft = this.slideOutLeft;
+
+    processScript(commands: BoardScriptCommand[]): void {
+        this.beginTrigger();
+        for (const cmd of commands) {
+            switch (cmd.action) {
+                case "text":
+                    this.writeText({ text: cmd.text, x: cmd.x, y: cmd.y, fontSize: cmd.fontSize, fontFamily: cmd.fontFamily, color: cmd.color, textAlign: cmd.textAlign, fontWeight: cmd.fontWeight, fontStyle: cmd.fontStyle });
+                    break;
+                case "paragraph":
+                    this.writeParagraph({ text: cmd.text, x: cmd.x, y: cmd.y, width: cmd.width, lineHeight: cmd.lineHeight, fontSize: cmd.fontSize, fontFamily: cmd.fontFamily, color: cmd.color, textAlign: cmd.textAlign, fontWeight: cmd.fontWeight, fontStyle: cmd.fontStyle });
+                    break;
+                case "line":
+                    this.drawLine({ x1: cmd.x1, y1: cmd.y1, x2: cmd.x2, y2: cmd.y2, color: cmd.color, lineDash: cmd.lineDash });
+                    break;
+                case "rect":
+                    this.drawRect({ x: cmd.x, y: cmd.y, width: cmd.width, height: cmd.height, color: cmd.color, fillColor: cmd.fillColor, radius: cmd.radius });
+                    break;
+                case "fillRect":
+                    this.fillRect({ x: cmd.x, y: cmd.y, width: cmd.width, height: cmd.height, fillColor: cmd.fillColor, radius: cmd.radius });
+                    break;
+                case "circle":
+                    this.drawCircle({ cx: cmd.cx, cy: cmd.cy, radius: cmd.radius, color: cmd.color, fillColor: cmd.fillColor });
+                    break;
+                case "ellipse":
+                    this.drawEllipse({ cx: cmd.cx, cy: cmd.cy, radiusX: cmd.radiusX, radiusY: cmd.radiusY, rotation: cmd.rotation, color: cmd.color, fillColor: cmd.fillColor });
+                    break;
+                case "arrow":
+                    this.drawArrow({ x1: cmd.x1, y1: cmd.y1, x2: cmd.x2, y2: cmd.y2, color: cmd.color, headSize: cmd.headSize });
+                    break;
+                case "image":
+                    this.drawImage({ src: cmd.src, x: cmd.x, y: cmd.y, width: cmd.width, height: cmd.height, opacity: cmd.opacity });
+                    break;
+                case "codeBlock":
+                    this.drawCodeBlock({ code: cmd.code, language: cmd.language, x: cmd.x, y: cmd.y, width: cmd.width, height: cmd.height, fontSize: cmd.fontSize });
+                    break;
+                case "table":
+                    this.drawTable({ data: cmd.data, x: cmd.x, y: cmd.y, cellWidth: cmd.cellWidth, cellHeight: cmd.cellHeight, headerBgColor: cmd.headerBgColor, headerTextColor: cmd.headerTextColor, rowBgColor: cmd.rowBgColor, altRowBgColor: cmd.altRowBgColor, textColor: cmd.textColor, borderColor: cmd.borderColor, fontSize: cmd.fontSize, fontFamily: cmd.fontFamily });
+                    break;
+                case "math":
+                    this.writeMath({ formula: cmd.formula, x: cmd.x, y: cmd.y, fontSize: cmd.fontSize, color: cmd.color, fontFamily: cmd.fontFamily, displayMode: cmd.displayMode });
+                    break;
+                case "polygon":
+                    this.drawPolygon({ points: cmd.points, color: cmd.color, fillColor: cmd.fillColor });
+                    break;
+                case "diamond":
+                    this.drawDiamond({ cx: cmd.cx, cy: cmd.cy, width: cmd.width, height: cmd.height, color: cmd.color, fillColor: cmd.fillColor });
+                    break;
+                case "gridAxes":
+                    this.drawGridAxes({ x: cmd.x, y: cmd.y, width: cmd.width, height: cmd.height, step: cmd.step, color: cmd.color });
+                    break;
+                case "gradientRect":
+                    this.drawGradientRect({ x: cmd.x, y: cmd.y, width: cmd.width, height: cmd.height, colors: cmd.colors, direction: cmd.direction });
+                    break;
+                case "pointer":
+                    this.drawPointer(cmd.x, cmd.y, cmd.color, cmd.size);
+                    break;
+                case "highlight":
+                    this.highlightRect(cmd.x, cmd.y, cmd.width, cmd.height, cmd.color);
+                    break;
+                case "wait":
+                    this.wait(cmd.duration);
+                    break;
+                case "clear":
+                    this.clear();
+                    break;
+                case "slideOutLeft":
+                    this.slideOutLeft(cmd.duration);
+                    break;
+                case "setColor":
+                    this.setColor(cmd.color);
+                    break;
+                case "setLineWidth":
+                    this.setLineWidth(cmd.width);
+                    break;
+                case "setSpeed":
+                    this.setSpeed(cmd.speed);
+                    break;
+                case "setBackground":
+                    this.setBackground(cmd.color);
+                    break;
+            }
+        }
+        this.completeTrigger();
+    }
 }
