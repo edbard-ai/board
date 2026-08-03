@@ -6,6 +6,7 @@
 │   📄 globals.css
 │   📄 layout.tsx
 │   📄 page.tsx
+📄 describe_image.py
 📄 eslint.config.mjs
 📁 lib
 │   📁 board
@@ -19,8 +20,13 @@
 │   │   📄 board.ts
 │   │   📁 examples
 │   │   │   📄 binarySearch.ts
+│   │   │   📄 binaryTreeSearch.ts
+│   │   │   📄 engineeringProblem.ts
 │   │   │   📄 index.ts
+│   │   │   📄 orthographic.ts
+│   │   │   📄 perspective.ts
 │   │   📄 index.ts
+│   │   📄 scene3d.ts
 │   │   📄 shapes.ts
 │   │   📄 types.ts
 📄 next.config.ts
@@ -31,6 +37,7 @@
 │   📄 file.svg
 │   📄 globe.svg
 │   📄 next.svg
+│   📄 question.png
 │   📄 vercel.svg
 │   📄 window.svg
 📄 tsconfig.json

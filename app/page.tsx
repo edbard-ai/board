@@ -1,22 +1,23 @@
 "use client"
-import { Board, runBinarySearchExample } from "@/lib/board"
+import { Board, runBinaryTreeSearchExample } from "@/lib/board"
+import { runEngineeringProblemExample } from "@/lib/board/examples/engineeringProblem"
 import { useEffect } from "react"
 
 export default function Home() {
   useEffect(() => {
     let isMounted = true
 
-    const initBoard = () => {
+    const initBoard = async () => {
       if (!isMounted) return
 
-      const board = new Board("board", 850, 530, {
-        speed: 25,
-        background: "#081214",
+      const board = new Board("board", 1400, 870, {
+        speed: 35,
+        background: "#060d12",
         hiDpi: true,
         fontFamily: "'Playpen Sans', sans-serif"
       })
 
-      runBinarySearchExample(board)
+      runBinaryTreeSearchExample(board)
     }
 
     if (document.fonts) {
@@ -33,8 +34,8 @@ export default function Home() {
   }, [])
 
   return (
-    <div className="w-full min-h-screen flex justify-center items-center bg-gray-950 p-4">
-      <div id="board" className="rounded-xl shadow-2xl overflow-hidden border border-gray-800" />
+    <div className="w-full min-h-screen flex justify-center items-center bg-gray-950 p-2 sm:p-4">
+      <div id="board" className="rounded-xl shadow-2xl overflow-hidden border border-gray-800 w-full max-w-[1400px]" />
     </div>
   )
 }

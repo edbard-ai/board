@@ -1,0 +1,20 @@
+📁 board
+│   📄 README.md
+│   📁 animation
+│   │   📄 index.ts
+│   │   📄 renderers.ts
+│   │   📄 runner.ts
+│   │   📄 transitions.ts
+│   📄 animation.ts
+│   📄 board.ts
+│   📁 examples
+│   │   📄 binarySearch.ts
+│   │   📄 binaryTreeSearch.ts
+│   │   📄 engineeringProblem.ts
+│   │   📄 index.ts
+│   │   📄 orthographic.ts
+│   │   📄 perspective.ts
+│   📄 index.ts
+│   📄 scene3d.ts
+│   📄 shapes.ts
+│   📄 types.ts
