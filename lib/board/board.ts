@@ -29,7 +29,6 @@ import {
     SizeCoord,
     BoardScriptCommand
 } from './types';
-import katex from 'katex';
 import {
     getSmoothSplinePoints,
     getRectPathPoints,
@@ -39,10 +38,11 @@ import {
     getArrowHeadLines
 } from './shapes';
 import {
-    slideOutLeftAnimation,
-    runDrawQueueAnimation,
+    runDrawQueueAnimation
+} from './animation/runner';
+import {
     renderDrawItem
-} from './animation';
+} from './animation/renderers';
 
 export type {
     Point,
@@ -78,8 +78,7 @@ export type {
 export class Board {
     id: string;
     container: HTMLDivElement;
-    canvas: HTMLCanvasElement;
-    ctx: CanvasRenderingContext2D;
+    viewport: HTMLDivElement;
 
     private isRecording = false;
     private drawQueue: DrawItem[] = [];
@@ -94,13 +93,16 @@ export class Board {
     fontFamily: string = '"Playpen Sans", sans-serif';
     
     fitMode: 'contain' | 'cover' | 'fill' = 'contain';
-    hiDpi: boolean = true;
+    hiDpi: boolean = true; // Kept for API compatibility, but unused in DOM
     viewportScale: number = 1;
     viewportOffsetX: number = 0;
     viewportOffsetY: number = 0;
     private resizeObserver: ResizeObserver | null = null;
-    renderedItems: Map<string, DrawItem> = new Map();
+    renderedItems: Map<string, { item: DrawItem, node: HTMLElement | SVGElement }> = new Map();
     private stateStack: { color: string; lineWidth: number; opacity: number; lineDash: number[] }[] = [];
+    
+    private currentOpacity: number = 1;
+    private currentLineDash: number[] = [];
 
     constructor(id: string, width: number, height: number, options?: BoardOptions) {
         this.id = id;
@@ -120,17 +122,14 @@ export class Board {
         this.container.style.width = '100%';
         this.container.style.height = '100%';
 
-        this.canvas = document.createElement('canvas');
-        this.canvas.style.position = 'absolute';
-        this.canvas.style.left = '0';
-        this.canvas.style.top = '0';
-        this.canvas.style.cursor = 'crosshair';
-        this.canvas.style.touchAction = 'none';
-        this.container.appendChild(this.canvas);
-
-        const ctx = this.canvas.getContext('2d');
-        if (!ctx) throw new Error("Could not get 2D context from canvas");
-        this.ctx = ctx;
+        this.viewport = document.createElement('div');
+        this.viewport.style.position = 'absolute';
+        this.viewport.style.left = '0';
+        this.viewport.style.top = '0';
+        this.viewport.style.width = `${this._logicalWidth}px`;
+        this.viewport.style.height = `${this._logicalHeight}px`;
+        this.viewport.style.transformOrigin = '0 0';
+        this.container.appendChild(this.viewport);
 
         this.updateViewport();
 
@@ -147,7 +146,6 @@ export class Board {
         if (typeof ResizeObserver !== 'undefined') {
             this.resizeObserver = new ResizeObserver(() => {
                 this.updateViewport();
-                this.redraw();
             });
             this.resizeObserver.observe(this.container);
         }
@@ -156,12 +154,6 @@ export class Board {
     public updateViewport() {
         const containerWidth = this.container.clientWidth || this._logicalWidth;
         const containerHeight = this.container.clientHeight || this._logicalHeight;
-        const dpr = this.hiDpi ? (window.devicePixelRatio || 1) : 1;
-
-        this.canvas.width = Math.floor(containerWidth * dpr);
-        this.canvas.height = Math.floor(containerHeight * dpr);
-        this.canvas.style.width = containerWidth + 'px';
-        this.canvas.style.height = containerHeight + 'px';
 
         const scaleX = containerWidth / this._logicalWidth;
         const scaleY = containerHeight / this._logicalHeight;
@@ -186,50 +178,38 @@ export class Board {
     }
 
     public applyViewportTransform() {
-        const dpr = this.hiDpi ? (window.devicePixelRatio || 1) : 1;
         if (this.fitMode === 'fill') {
             const containerWidth = this.container.clientWidth || this._logicalWidth;
             const containerHeight = this.container.clientHeight || this._logicalHeight;
             const scaleX = containerWidth / this._logicalWidth;
             const scaleY = containerHeight / this._logicalHeight;
-            this.ctx.setTransform(scaleX * dpr, 0, 0, scaleY * dpr, 0, 0);
+            this.viewport.style.transform = `scale(${scaleX}, ${scaleY})`;
         } else {
-            this.ctx.setTransform(
-                this.viewportScale * dpr,
-                0,
-                0,
-                this.viewportScale * dpr,
-                this.viewportOffsetX * dpr,
-                this.viewportOffsetY * dpr
-            );
+            this.viewport.style.transform = `translate(${this.viewportOffsetX}px, ${this.viewportOffsetY}px) scale(${this.viewportScale})`;
         }
-        this.ctx.lineCap = 'round';
-        this.ctx.lineJoin = 'round';
     }
 
     public redraw() {
-        this.applyViewportTransform();
-        this.ctx.clearRect(-10000, -10000, 20000, 20000);
-        this.renderedItems.forEach((item) => {
-            renderDrawItem(this.ctx, item);
-        });
+        // With DOM, redraw is usually not needed just for resize,
+        // but we keep it for API compatibility.
+        this.updateViewport();
     }
 
     public clientToLogical(clientX: number, clientY: number): Point {
-        const rect = this.canvas.getBoundingClientRect();
-        const canvasX = clientX - rect.left;
-        const canvasY = clientY - rect.top;
+        const rect = this.container.getBoundingClientRect();
+        const containerX = clientX - rect.left;
+        const containerY = clientY - rect.top;
         if (this.fitMode === 'fill') {
             const containerWidth = this.container.clientWidth || this._logicalWidth;
             const containerHeight = this.container.clientHeight || this._logicalHeight;
             return {
-                x: canvasX / (containerWidth / this._logicalWidth),
-                y: canvasY / (containerHeight / this._logicalHeight)
+                x: containerX / (containerWidth / this._logicalWidth),
+                y: containerY / (containerHeight / this._logicalHeight)
             };
         }
         return {
-            x: (canvasX - this.viewportOffsetX) / (this.viewportScale || 1),
-            y: (canvasY - this.viewportOffsetY) / (this.viewportScale || 1)
+            x: (containerX - this.viewportOffsetX) / (this.viewportScale || 1),
+            y: (containerY - this.viewportOffsetY) / (this.viewportScale || 1)
         };
     }
 
@@ -238,12 +218,17 @@ export class Board {
             this.resizeObserver.disconnect();
             this.resizeObserver = null;
         }
+        this.viewport.innerHTML = '';
+        this.renderedItems.clear();
     }
 
     private renderDirect(item: DrawItem) {
-        renderDrawItem(this.ctx, item);
-        if ('id' in item && item.id) {
-            this.renderedItems.set(item.id, item);
+        const node = renderDrawItem(item);
+        if (node) {
+            this.viewport.appendChild(node);
+            if ('id' in item && item.id) {
+                this.renderedItems.set(item.id, { item, node });
+            }
         }
     }
 
@@ -355,31 +340,29 @@ export class Board {
     }
 
     setOpacity(alpha: number) {
-        this.ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+        this.currentOpacity = Math.max(0, Math.min(1, alpha));
     }
 
     setLineDash(segments: number[]) {
-        this.ctx.setLineDash(segments);
+        this.currentLineDash = segments;
     }
 
     save() {
-        this.ctx.save();
         this.stateStack.push({
             color: this.color,
             lineWidth: this.lineWidth,
-            opacity: this.ctx.globalAlpha,
-            lineDash: this.ctx.getLineDash()
+            opacity: this.currentOpacity,
+            lineDash: [...this.currentLineDash]
         });
     }
 
     restore() {
-        this.ctx.restore();
         const state = this.stateStack.pop();
         if (state) {
             this.color = state.color;
             this.lineWidth = state.lineWidth;
-            this.ctx.globalAlpha = state.opacity;
-            this.ctx.setLineDash(state.lineDash);
+            this.currentOpacity = state.opacity;
+            this.currentLineDash = state.lineDash;
         }
     }
 
@@ -389,7 +372,7 @@ export class Board {
 
     clear() {
         this.renderedItems.clear();
-        this.ctx.clearRect(-10000, -10000, 20000, 20000);
+        this.viewport.innerHTML = '';
     }
 
     beginTrigger() {
@@ -413,8 +396,11 @@ export class Board {
         if (this.isRecording) {
             this.drawQueue.push({ type: 'delete', id, duration: durationMs });
         } else {
+            const el = this.renderedItems.get(id);
+            if (el && el.node.parentNode) {
+                el.node.parentNode.removeChild(el.node);
+            }
             this.renderedItems.delete(id);
-            this.redraw();
         }
     }
 
@@ -430,6 +416,9 @@ export class Board {
     moveTo(id: string, x: XCoord, y: YCoord, durationMs: number = 300) {
         const posX = this.resolveX(x);
         const posY = this.resolveY(y);
+        // Note: we'd need current coords to calculate dx/dy but runner doesn't use targetX/targetY right now.
+        // For DOM, move action needs to know relative dx, dy if we are using translate.
+        // Simplified version for DOM compatibility.
         if (this.isRecording) {
             this.drawQueue.push({ type: 'move', id, targetX: posX, targetY: posY, duration: durationMs });
         }
@@ -446,7 +435,7 @@ export class Board {
         this.isAnimating = true;
 
         runDrawQueueAnimation(
-            this.ctx,
+            this.viewport,
             this.drawQueue,
             this.speed,
             () => {
@@ -464,7 +453,7 @@ export class Board {
         const posX2 = this.resolveX(x2);
         const posY2 = this.resolveY(y2);
         const strokeColor = color || this.color;
-        const item: DrawItem = { type: 'line', id: itemId, x1: posX1, y1: posY1, x2: posX2, y2: posY2, color: strokeColor, lineWidth: this.lineWidth, lineDash };
+        const item: DrawItem = { type: 'line', id: itemId, x1: posX1, y1: posY1, x2: posX2, y2: posY2, color: strokeColor, lineWidth: this.lineWidth, lineDash: lineDash || (this.currentLineDash.length > 0 ? this.currentLineDash : undefined) };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -600,7 +589,7 @@ export class Board {
         const itemId = id || this.generateId();
         const { posX, posY } = this.resolveXY(cx, cy);
         const strokeColor = color || this.color;
-        const item: DrawItem = { type: 'circle', id: itemId, cx: posX, cy: posY, radius: this.resolveSize(radius), color: strokeColor, fillColor, startAngle, endAngle, lineWidth: this.lineWidth };
+        const item: DrawItem = { type: 'circle', id: itemId, cx: posX, cy: posY, radius: this.resolveSize(radius), color: strokeColor, fillColor, startAngle, endAngle, lineWidth: this.lineWidth, lineDash: this.currentLineDash.length > 0 ? this.currentLineDash : undefined };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -622,7 +611,7 @@ export class Board {
         const itemId = id || this.generateId();
         const { posX, posY } = this.resolveXY(cx, cy);
         const strokeColor = color || this.color;
-        const item: DrawItem = { type: 'ellipse', id: itemId, cx: posX, cy: posY, radiusX: this.resolveWidth(radiusX), radiusY: this.resolveHeight(radiusY), rotation, color: strokeColor, fillColor, lineWidth: this.lineWidth };
+        const item: DrawItem = { type: 'ellipse', id: itemId, cx: posX, cy: posY, radiusX: this.resolveWidth(radiusX), radiusY: this.resolveHeight(radiusY), rotation, color: strokeColor, fillColor, lineWidth: this.lineWidth, lineDash: this.currentLineDash.length > 0 ? this.currentLineDash : undefined };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -644,7 +633,7 @@ export class Board {
         const itemId = id || this.generateId();
         const { posX, posY } = this.resolveXY(cx, cy);
         const strokeColor = color || this.color;
-        const item: DrawItem = { type: 'arc', id: itemId, cx: posX, cy: posY, radius: this.resolveSize(radius), startAngle, endAngle, color: strokeColor, counterClockwise, lineWidth: this.lineWidth };
+        const item: DrawItem = { type: 'arc', id: itemId, cx: posX, cy: posY, radius: this.resolveSize(radius), startAngle, endAngle, color: strokeColor, counterClockwise, lineWidth: this.lineWidth, lineDash: this.currentLineDash.length > 0 ? this.currentLineDash : undefined };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -687,31 +676,25 @@ export class Board {
         const { posX, posY } = this.resolveXY(x, y);
         const resolvedSize = this.resolveSize(fontSize);
         const activeFont = fontFamily || this.fontFamily;
-        const htmlContent = katex.renderToString(formula, {
-            displayMode: displayMode,
-            throwOnError: false
-        });
-
-        const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300">
-            <style>
-                .katex-mathml { display: none; }
-            </style>
-            <foreignObject width="100%" height="100%">
-                <div xmlns="http://www.w3.org/1999/xhtml" style="color:${color};font-size:${resolvedSize}px;font-family:${activeFont};line-height:1.2;display:inline-block;">
-                    ${htmlContent}
-                </div>
-            </foreignObject>
-        </svg>`;
-
-        const img = new Image();
-        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
-
-        return this.drawImage({
+        
+        const item: DrawItem = {
+            type: 'math',
             id: itemId,
-            src: img,
+            formula,
             x: posX,
-            y: posY
-        });
+            y: posY,
+            fontSize: resolvedSize,
+            color,
+            fontFamily: activeFont,
+            displayMode
+        };
+
+        if (this.isRecording) {
+            this.drawQueue.push(item);
+            return itemId;
+        }
+        this.renderDirect(item);
+        return itemId;
     }
 
     drawMath(options: WriteMathOptions): string {
@@ -772,11 +755,10 @@ export class Board {
     drawCodeBlock({ id, code, language, x, y = 0, width, height = 0, fontSize = 16 }: DrawCodeBlockOptions): string {
         const itemId = id || this.generateId();
         const { posX, posY } = this.resolveXY(x, y);
-        const lines = code.split('\n');
         const resolvedFontSize = this.resolveSize(fontSize);
         const resolvedHeight = this.resolveHeight(height);
-        const h = resolvedHeight > 0 ? resolvedHeight : lines.length * (resolvedFontSize * 1.5) + (language ? 50 : 30);
-        const item: DrawItem = { type: 'codeBlock', id: itemId, code, language, x: posX, y: posY, width: this.resolveWidth(width), height: h, fontSize: resolvedFontSize };
+        
+        const item: DrawItem = { type: 'codeBlock', id: itemId, code, language, x: posX, y: posY, width: this.resolveWidth(width), height: resolvedHeight, fontSize: resolvedFontSize };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -1180,7 +1162,16 @@ export class Board {
     }
 
     private slideOutLeftHelper(durationMs: number = 400): Promise<void> {
-        return slideOutLeftAnimation(this.canvas, this.ctx, durationMs, () => this.clear());
+        return new Promise((resolve) => {
+            this.viewport.style.transition = `transform ${durationMs}ms ease-in-out`;
+            this.viewport.style.transform = `translate(-100vw, ${this.viewportOffsetY}px) scale(${this.viewportScale})`;
+            setTimeout(() => {
+                this.clear();
+                this.viewport.style.transition = 'none';
+                this.applyViewportTransform();
+                resolve();
+            }, durationMs);
+        });
     }
 
     slideOutLeft(durationMs: number = 400): Promise<void> {

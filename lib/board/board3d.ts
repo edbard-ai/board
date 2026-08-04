@@ -36,7 +36,7 @@ export class Board3D {
     
     // Set up camera
     const fov = options.cameraFov ?? 75;
-    const aspect = board.canvas.width / board.canvas.height;
+    const aspect = board.width / board.height;
     const near = options.cameraNear ?? 0.1;
     const far = options.cameraFar ?? 1000;
     this.camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
@@ -45,8 +45,8 @@ export class Board3D {
     this.camera.position.set(pos.x, pos.y, pos.z);
     
     // Set up renderer
-    const initialWidth = board.canvas.parentElement?.clientWidth || board.canvas.width;
-    const initialHeight = board.canvas.parentElement?.clientHeight || board.canvas.height;
+    const initialWidth = board.container.clientWidth || board.width;
+    const initialHeight = board.container.clientHeight || board.height;
     
     this.renderer = new THREE.WebGLRenderer({ 
       alpha: options.alpha ?? true,
@@ -63,9 +63,9 @@ export class Board3D {
     canvas3d.style.height = '100%';
     canvas3d.style.pointerEvents = options.orbitControls ? 'auto' : 'none';
     
-    if (board.canvas.parentElement) {
-      board.canvas.parentElement.style.position = 'relative';
-      board.canvas.parentElement.appendChild(canvas3d);
+    if (board.container) {
+      board.container.style.position = 'relative';
+      board.container.appendChild(canvas3d);
     }
     
     if (options.orbitControls) {
@@ -75,17 +75,17 @@ export class Board3D {
     this.addAmbientLight({ intensity: 0.5 });
     this.addDirectionalLight({ position: { x: 5, y: 5, z: 5 }, intensity: 0.8 });
     
-    if (board.canvas.parentElement) {
+    if (board.container) {
         const resizeObserver = new ResizeObserver(() => {
-            const width = board.canvas.parentElement?.clientWidth || 0;
-            const height = board.canvas.parentElement?.clientHeight || 0;
+            const width = board.container.clientWidth || 0;
+            const height = board.container.clientHeight || 0;
             if (width === 0 || height === 0) return;
             this.camera.aspect = width / height;
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(width, height);
             this.render();
         });
-        resizeObserver.observe(board.canvas.parentElement);
+        resizeObserver.observe(board.container);
     }
   }
 

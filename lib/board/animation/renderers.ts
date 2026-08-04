@@ -1,338 +1,397 @@
 import { DrawItem, Point } from '../types';
+import katex from 'katex';
 
-export function renderLine(ctx: CanvasRenderingContext2D, item: Extract<DrawItem, { type: 'line' }>): void {
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(item.x1, item.y1);
-    ctx.lineTo(item.x2, item.y2);
-    ctx.strokeStyle = item.color;
-    ctx.lineWidth = item.lineWidth;
-    if (item.lineDash) ctx.setLineDash(item.lineDash);
-    ctx.stroke();
-    ctx.closePath();
-    ctx.restore();
+function createSvgElement(tag: string): SVGElement {
+    return document.createElementNS('http://www.w3.org/2000/svg', tag);
 }
 
-export function renderText(ctx: CanvasRenderingContext2D, item: Extract<DrawItem, { type: 'text' }>): void {
-    ctx.save();
-    const fStyle = item.fontStyle ? `${item.fontStyle} ` : '';
-    const fWeight = item.fontWeight ? `${item.fontWeight} ` : '';
-    ctx.font = `${fStyle}${fWeight}${item.fontSize}px ${item.fontFamily}`;
-    ctx.fillStyle = item.color;
-    if (item.textAlign) ctx.textAlign = item.textAlign;
-    if (item.textBaseline) ctx.textBaseline = item.textBaseline;
-    const lines = item.text.split('\n');
-    if (lines.length > 1) {
-        const lh = item.fontSize * 1.3;
-        lines.forEach((line, i) => {
-            ctx.fillText(line, item.x, item.y + i * lh, item.maxWidth);
-        });
-    } else {
-        ctx.fillText(item.text, item.x, item.y, item.maxWidth);
+function createSvgContainer(): SVGSVGElement {
+    const svg = createSvgElement('svg') as SVGSVGElement;
+    svg.style.position = 'absolute';
+    svg.style.left = '0';
+    svg.style.top = '0';
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+    svg.style.overflow = 'visible';
+    svg.style.pointerEvents = 'none';
+    return svg;
+}
+
+export function renderLine(item: Extract<DrawItem, { type: 'line' }>): SVGElement {
+    const svg = createSvgContainer();
+    const line = createSvgElement('line');
+    line.setAttribute('x1', item.x1.toString());
+    line.setAttribute('y1', item.y1.toString());
+    line.setAttribute('x2', item.x2.toString());
+    line.setAttribute('y2', item.y2.toString());
+    line.setAttribute('stroke', item.color);
+    line.setAttribute('stroke-width', item.lineWidth.toString());
+    line.setAttribute('stroke-linecap', 'round');
+    if (item.lineDash && item.lineDash.length > 0) {
+        line.setAttribute('stroke-dasharray', item.lineDash.join(','));
     }
-    ctx.restore();
+    svg.appendChild(line);
+    return svg;
 }
 
-export function renderParagraph(ctx: CanvasRenderingContext2D, item: Extract<DrawItem, { type: 'paragraph' }>): void {
-    ctx.save();
-    const fStyle = item.fontStyle ? `${item.fontStyle} ` : '';
-    const fWeight = item.fontWeight ? `${item.fontWeight} ` : '';
-    ctx.font = `${fStyle}${fWeight}${item.fontSize}px ${item.fontFamily}`;
-    ctx.fillStyle = item.color;
-    if (item.textAlign) ctx.textAlign = item.textAlign;
+export function renderText(item: Extract<DrawItem, { type: 'text' }>): HTMLElement {
+    const div = document.createElement('div');
+    div.style.position = 'absolute';
+    div.style.left = `${item.x}px`;
+    div.style.top = `${item.y}px`;
+    div.style.color = item.color;
+    div.style.fontFamily = item.fontFamily;
+    div.style.fontSize = `${item.fontSize}px`;
+    if (item.fontWeight) div.style.fontWeight = item.fontWeight;
+    if (item.fontStyle) div.style.fontStyle = item.fontStyle;
+    
+    if (item.textAlign === 'center') {
+        div.style.transform = 'translate(-50%, 0)';
+        div.style.textAlign = 'center';
+    } else if (item.textAlign === 'right') {
+        div.style.transform = 'translate(-100%, 0)';
+        div.style.textAlign = 'right';
+    }
+    
+    if (item.textBaseline === 'middle') {
+        div.style.transform += ' translateY(-50%)';
+    } else if (item.textBaseline === 'bottom') {
+        div.style.transform += ' translateY(-100%)';
+    }
 
-    const paragraphLines = item.text.split('\n');
-    let currY = item.y;
-    const lh = item.fontSize * item.lineHeight;
+    if (item.maxWidth) {
+        div.style.maxWidth = `${item.maxWidth}px`;
+    }
+    
+    div.style.whiteSpace = 'pre-wrap';
+    div.innerText = item.text;
+    return div;
+}
 
-    for (const pLine of paragraphLines) {
-        const words = pLine.split(' ');
-        let line = '';
-        for (let n = 0; n < words.length; n++) {
-            const testLine = line + words[n] + ' ';
-            const metrics = ctx.measureText(testLine);
-            if (metrics.width > item.width && n > 0) {
-                ctx.fillText(line, item.x, currY);
-                line = words[n] + ' ';
-                currY += lh;
-            } else {
-                line = testLine;
-            }
+export function renderParagraph(item: Extract<DrawItem, { type: 'paragraph' }>): HTMLElement {
+    const div = document.createElement('div');
+    div.style.position = 'absolute';
+    div.style.left = `${item.x}px`;
+    div.style.top = `${item.y}px`;
+    div.style.width = `${item.width}px`;
+    div.style.color = item.color;
+    div.style.fontFamily = item.fontFamily;
+    div.style.fontSize = `${item.fontSize}px`;
+    div.style.lineHeight = item.lineHeight.toString();
+    if (item.fontWeight) div.style.fontWeight = item.fontWeight;
+    if (item.fontStyle) div.style.fontStyle = item.fontStyle;
+    if (item.textAlign) div.style.textAlign = item.textAlign === 'center' ? 'center' : (item.textAlign === 'right' ? 'right' : 'left');
+    
+    div.style.whiteSpace = 'pre-wrap';
+    div.innerText = item.text;
+    return div;
+}
+
+export function renderFillRect(item: Extract<DrawItem, { type: 'fillRect' }>): HTMLElement {
+    const div = document.createElement('div');
+    div.style.position = 'absolute';
+    div.style.left = `${item.x}px`;
+    div.style.top = `${item.y}px`;
+    div.style.width = `${item.width}px`;
+    div.style.height = `${item.height}px`;
+    div.style.backgroundColor = item.fillColor;
+    if (item.radius) div.style.borderRadius = `${item.radius}px`;
+    return div;
+}
+
+export function renderDrawRect(item: Extract<DrawItem, { type: 'drawRect' }>): HTMLElement {
+    const div = document.createElement('div');
+    div.style.position = 'absolute';
+    div.style.left = `${item.x}px`;
+    div.style.top = `${item.y}px`;
+    div.style.width = `${item.width}px`;
+    div.style.height = `${item.height}px`;
+    if (item.fillColor && item.fillColor !== 'transparent') {
+        div.style.backgroundColor = item.fillColor;
+    }
+    if (item.color && item.color !== 'transparent') {
+        div.style.border = `${item.lineWidth ?? 2}px solid ${item.color}`;
+    }
+    if (item.radius) div.style.borderRadius = `${item.radius}px`;
+    div.style.boxSizing = 'border-box';
+    return div;
+}
+
+export function renderFillPolygon(item: Extract<DrawItem, { type: 'fillPolygon' }>): SVGElement {
+    const svg = createSvgContainer();
+    const polygon = createSvgElement('polygon');
+    const pointsStr = item.points.map(p => `${p.x},${p.y}`).join(' ');
+    polygon.setAttribute('points', pointsStr);
+    polygon.setAttribute('fill', item.fillColor);
+    svg.appendChild(polygon);
+    return svg;
+}
+
+export function renderCircle(item: Extract<DrawItem, { type: 'circle' }>): SVGElement {
+    const svg = createSvgContainer();
+    
+    if ((item.startAngle && item.startAngle !== 0) || (item.endAngle && item.endAngle !== Math.PI * 2)) {
+        const path = createSvgElement('path');
+        const startX = item.cx + item.radius * Math.cos(item.startAngle ?? 0);
+        const startY = item.cy + item.radius * Math.sin(item.startAngle ?? 0);
+        const endX = item.cx + item.radius * Math.cos(item.endAngle ?? Math.PI * 2);
+        const endY = item.cy + item.radius * Math.sin(item.endAngle ?? Math.PI * 2);
+        const largeArcFlag = ((item.endAngle ?? Math.PI * 2) - (item.startAngle ?? 0) <= Math.PI) ? "0" : "1";
+        
+        const d = [
+            "M", startX, startY, 
+            "A", item.radius, item.radius, 0, largeArcFlag, 1, endX, endY
+        ].join(" ");
+        
+        path.setAttribute("d", d);
+        if (item.fillColor && item.fillColor !== 'transparent') path.setAttribute("fill", item.fillColor);
+        else path.setAttribute("fill", "none");
+        
+        if (item.color && item.color !== 'transparent') {
+            path.setAttribute("stroke", item.color);
+            path.setAttribute("stroke-width", (item.lineWidth ?? 2).toString());
         }
-        ctx.fillText(line, item.x, currY);
-        currY += lh;
-    }
-    ctx.restore();
-}
-
-export function renderFillRect(ctx: CanvasRenderingContext2D, item: Extract<DrawItem, { type: 'fillRect' }>): void {
-    ctx.save();
-    ctx.fillStyle = item.fillColor;
-    ctx.beginPath();
-    const r = Math.min(item.radius, item.width / 2, item.height / 2);
-    if (ctx.roundRect) {
-        ctx.roundRect(item.x, item.y, item.width, item.height, r);
+        svg.appendChild(path);
     } else {
-        ctx.rect(item.x, item.y, item.width, item.height);
+        const circle = createSvgElement('circle');
+        circle.setAttribute('cx', item.cx.toString());
+        circle.setAttribute('cy', item.cy.toString());
+        circle.setAttribute('r', item.radius.toString());
+        if (item.fillColor && item.fillColor !== 'transparent') circle.setAttribute('fill', item.fillColor);
+        else circle.setAttribute('fill', 'none');
+        if (item.color && item.color !== 'transparent') {
+            circle.setAttribute('stroke', item.color);
+            circle.setAttribute('stroke-width', (item.lineWidth ?? 2).toString());
+            if (item.lineDash && item.lineDash.length > 0) circle.setAttribute('stroke-dasharray', item.lineDash.join(','));
+        }
+        svg.appendChild(circle);
     }
-    ctx.fill();
-    ctx.restore();
+    
+    return svg;
 }
 
-export function renderDrawRect(ctx: CanvasRenderingContext2D, item: Extract<DrawItem, { type: 'drawRect' }>): void {
-    ctx.save();
-    const r = Math.min(item.radius ?? 12, item.width / 2, item.height / 2);
-    ctx.beginPath();
-    if (ctx.roundRect) {
-        ctx.roundRect(item.x, item.y, item.width, item.height, r);
-    } else {
-        ctx.rect(item.x, item.y, item.width, item.height);
-    }
-    if (item.fillColor) {
-        ctx.fillStyle = item.fillColor;
-        ctx.fill();
-    }
+export function renderEllipse(item: Extract<DrawItem, { type: 'ellipse' }>): SVGElement {
+    const svg = createSvgContainer();
+    const ellipse = createSvgElement('ellipse');
+    ellipse.setAttribute('cx', item.cx.toString());
+    ellipse.setAttribute('cy', item.cy.toString());
+    ellipse.setAttribute('rx', item.radiusX.toString());
+    ellipse.setAttribute('ry', item.radiusY.toString());
+    if (item.rotation) ellipse.setAttribute('transform', `rotate(${(item.rotation * 180) / Math.PI} ${item.cx} ${item.cy})`);
+    
+    if (item.fillColor && item.fillColor !== 'transparent') ellipse.setAttribute('fill', item.fillColor);
+    else ellipse.setAttribute('fill', 'none');
+    
     if (item.color && item.color !== 'transparent') {
-        ctx.strokeStyle = item.color;
-        ctx.lineWidth = item.lineWidth ?? 2;
-        ctx.stroke();
+        ellipse.setAttribute('stroke', item.color);
+        ellipse.setAttribute('stroke-width', (item.lineWidth ?? 2).toString());
+        if (item.lineDash && item.lineDash.length > 0) ellipse.setAttribute('stroke-dasharray', item.lineDash.join(','));
     }
-    ctx.restore();
+    svg.appendChild(ellipse);
+    return svg;
 }
 
-export function renderFillPolygon(ctx: CanvasRenderingContext2D, item: Extract<DrawItem, { type: 'fillPolygon' }>): void {
-    ctx.save();
-    ctx.fillStyle = item.fillColor;
-    ctx.beginPath();
-    item.points.forEach((p, idx) => {
-        if (idx === 0) ctx.moveTo(p.x, p.y);
-        else ctx.lineTo(p.x, p.y);
-    });
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
+export function renderArc(item: Extract<DrawItem, { type: 'arc' }>): SVGElement {
+    const svg = createSvgContainer();
+    const path = createSvgElement('path');
+    
+    let endA = item.endAngle;
+    let startA = item.startAngle;
+    if (item.counterClockwise) {
+        endA = item.startAngle;
+        startA = item.endAngle;
+    }
+    
+    const startX = item.cx + item.radius * Math.cos(startA);
+    const startY = item.cy + item.radius * Math.sin(startA);
+    const endX = item.cx + item.radius * Math.cos(endA);
+    const endY = item.cy + item.radius * Math.sin(endA);
+    
+    let diff = endA - startA;
+    while (diff < 0) diff += Math.PI * 2;
+    const largeArcFlag = diff <= Math.PI ? "0" : "1";
+    
+    const sweepFlag = item.counterClockwise ? "0" : "1";
+    
+    const d = [
+        "M", startX, startY, 
+        "A", item.radius, item.radius, 0, largeArcFlag, sweepFlag, endX, endY
+    ].join(" ");
+    
+    path.setAttribute("d", d);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", item.color);
+    path.setAttribute("stroke-width", (item.lineWidth ?? 2).toString());
+    svg.appendChild(path);
+    return svg;
 }
 
-export function renderCircle(ctx: CanvasRenderingContext2D, item: Extract<DrawItem, { type: 'circle' }>): void {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(item.cx, item.cy, item.radius, item.startAngle ?? 0, item.endAngle ?? Math.PI * 2);
-    if (item.fillColor) {
-        ctx.fillStyle = item.fillColor;
-        ctx.fill();
-    }
-    if (item.color && item.color !== 'transparent') {
-        ctx.strokeStyle = item.color;
-        ctx.lineWidth = item.lineWidth ?? 2;
-        if (item.lineDash) ctx.setLineDash(item.lineDash);
-        ctx.stroke();
-    }
-    ctx.restore();
-}
-
-export function renderEllipse(ctx: CanvasRenderingContext2D, item: Extract<DrawItem, { type: 'ellipse' }>): void {
-    ctx.save();
-    ctx.beginPath();
-    ctx.ellipse(item.cx, item.cy, item.radiusX, item.radiusY, item.rotation ?? 0, 0, Math.PI * 2);
-    if (item.fillColor) {
-        ctx.fillStyle = item.fillColor;
-        ctx.fill();
-    }
-    if (item.color && item.color !== 'transparent') {
-        ctx.strokeStyle = item.color;
-        ctx.lineWidth = item.lineWidth ?? 2;
-        ctx.stroke();
-    }
-    ctx.restore();
-}
-
-export function renderArc(ctx: CanvasRenderingContext2D, item: Extract<DrawItem, { type: 'arc' }>): void {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(item.cx, item.cy, item.radius, item.startAngle, item.endAngle, item.counterClockwise);
-    ctx.strokeStyle = item.color;
-    ctx.lineWidth = item.lineWidth ?? 2;
-    ctx.stroke();
-    ctx.restore();
-}
-
-export function renderImage(ctx: CanvasRenderingContext2D, item: Extract<DrawItem, { type: 'image' }>): void {
-    ctx.save();
-    ctx.globalAlpha = item.opacity ?? 1;
-    let img: CanvasImageSource;
+export function renderImage(item: Extract<DrawItem, { type: 'image' }>): HTMLElement {
+    const img = document.createElement('img');
+    img.style.position = 'absolute';
+    img.style.left = `${item.x}px`;
+    img.style.top = `${item.y}px`;
+    if (item.width) img.style.width = `${item.width}px`;
+    if (item.height) img.style.height = `${item.height}px`;
+    img.style.opacity = (item.opacity ?? 1).toString();
+    
     if (typeof item.src === 'string') {
-        const newImg = new Image();
-        newImg.src = item.src;
-        img = newImg;
+        img.src = item.src;
     } else {
-        img = item.src;
+        img.src = item.src.src;
     }
-    try {
-        if (item.width && item.height) {
-            ctx.drawImage(img, item.x, item.y, item.width, item.height);
-        } else {
-            ctx.drawImage(img, item.x, item.y);
-        }
-    } catch (e) { }
-    ctx.restore();
+    return img;
 }
 
-export function renderGradientRect(ctx: CanvasRenderingContext2D, item: Extract<DrawItem, { type: 'gradientRect' }>): void {
-    ctx.save();
-    let gradient: CanvasGradient;
+export function renderGradientRect(item: Extract<DrawItem, { type: 'gradientRect' }>): HTMLElement {
+    const div = document.createElement('div');
+    div.style.position = 'absolute';
+    div.style.left = `${item.x}px`;
+    div.style.top = `${item.y}px`;
+    div.style.width = `${item.width}px`;
+    div.style.height = `${item.height}px`;
+    
+    const colors = item.colors.join(', ');
     if (item.direction === 'horizontal') {
-        gradient = ctx.createLinearGradient(item.x, item.y, item.x + item.width, item.y);
+        div.style.background = `linear-gradient(to right, ${colors})`;
     } else if (item.direction === 'diagonal') {
-        gradient = ctx.createLinearGradient(item.x, item.y, item.x + item.width, item.y + item.height);
+        div.style.background = `linear-gradient(to bottom right, ${colors})`;
     } else {
-        gradient = ctx.createLinearGradient(item.x, item.y, item.x, item.y + item.height);
+        div.style.background = `linear-gradient(to bottom, ${colors})`;
     }
-    item.colors.forEach((c, i) => gradient.addColorStop(i / (item.colors.length - 1 || 1), c));
-    ctx.fillStyle = gradient;
-    ctx.fillRect(item.x, item.y, item.width, item.height);
-    ctx.restore();
+    return div;
 }
 
-export function renderPointer(ctx: CanvasRenderingContext2D, item: Extract<DrawItem, { type: 'pointer' }>): void {
-    ctx.save();
-    ctx.fillStyle = item.color;
-    ctx.beginPath();
-    ctx.arc(item.x, item.y, item.size, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+export function renderPointer(item: Extract<DrawItem, { type: 'pointer' }>): HTMLElement {
+    const div = document.createElement('div');
+    div.style.position = 'absolute';
+    div.style.left = `${item.x - item.size}px`;
+    div.style.top = `${item.y - item.size}px`;
+    div.style.width = `${item.size * 2}px`;
+    div.style.height = `${item.size * 2}px`;
+    div.style.borderRadius = '50%';
+    div.style.backgroundColor = item.color;
+    return div;
 }
 
-export function renderHighlightRect(ctx: CanvasRenderingContext2D, item: Extract<DrawItem, { type: 'highlightRect' }>): void {
-    ctx.save();
-    ctx.fillStyle = item.color;
-    ctx.fillRect(item.x, item.y, item.width, item.height);
-    ctx.restore();
+export function renderHighlightRect(item: Extract<DrawItem, { type: 'highlightRect' }>): HTMLElement {
+    const div = document.createElement('div');
+    div.style.position = 'absolute';
+    div.style.left = `${item.x}px`;
+    div.style.top = `${item.y}px`;
+    div.style.width = `${item.width}px`;
+    div.style.height = `${item.height}px`;
+    div.style.backgroundColor = item.color;
+    return div;
 }
 
-export function renderCodeBlock(ctx: CanvasRenderingContext2D, item: Extract<DrawItem, { type: 'codeBlock' }>): void {
-    ctx.save();
+export function renderCodeBlock(item: Extract<DrawItem, { type: 'codeBlock' }>): HTMLElement {
+    const div = document.createElement('div');
+    div.style.position = 'absolute';
+    div.style.left = `${item.x}px`;
+    div.style.top = `${item.y}px`;
+    div.style.width = `${item.width}px`;
+    
     const fontSize = item.fontSize ?? 16;
     const lines = item.code.split('\n');
     const headerHeight = item.language ? fontSize * 2.2 : fontSize * 1.2;
     const paddingX = Math.max(10, fontSize * 0.8);
     const lineHeight = fontSize * 1.5;
     const h = item.height > 0 ? item.height : lines.length * lineHeight + headerHeight + fontSize * 0.4;
-    ctx.fillStyle = '#1e1e1e';
-    ctx.beginPath();
+    
+    div.style.height = `${h}px`;
+    div.style.backgroundColor = '#1e1e1e';
     const radius = Math.max(4, fontSize * 0.5);
-    if (ctx.roundRect) {
-        ctx.roundRect(item.x, item.y, item.width, h, radius);
-    } else {
-        ctx.rect(item.x, item.y, item.width, h);
-    }
-    ctx.fill();
+    div.style.borderRadius = `${radius}px`;
+    div.style.overflow = 'hidden';
+    
+    let html = '';
     if (item.language) {
         const langFontSize = Math.max(10, fontSize * 0.85);
-        ctx.font = `${langFontSize}px monospace`;
-        ctx.fillStyle = '#888';
-        ctx.fillText(item.language, item.x + paddingX, item.y + langFontSize * 1.6);
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(item.x, item.y + headerHeight);
-        ctx.lineTo(item.x + item.width, item.y + headerHeight);
-        ctx.stroke();
+        html += `<div style="height:${headerHeight}px; border-bottom: 1px solid #333; display: flex; align-items: center; padding-left: ${paddingX}px; color: #888; font-family: monospace; font-size: ${langFontSize}px;">${item.language}</div>`;
     }
-    let currY = item.y + headerHeight + fontSize * 1.1;
-    ctx.font = `${fontSize}px monospace`;
-    ctx.fillStyle = '#d4d4d4';
-    lines.forEach(line => {
-        ctx.fillText(line, item.x + paddingX, currY);
-        currY += lineHeight;
-    });
-    ctx.restore();
+    
+    html += `<div style="padding: ${fontSize * 0.5}px ${paddingX}px; color: #d4d4d4; font-family: monospace; font-size: ${fontSize}px; line-height: ${lineHeight}px; white-space: pre;">${item.code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+    
+    div.innerHTML = html;
+    return div;
 }
 
-export function renderTable(ctx: CanvasRenderingContext2D, item: Extract<DrawItem, { type: 'table' }>): void {
-    ctx.save();
-    const { data, x, y, cellWidth, cellHeight, headerBgColor, headerTextColor, rowBgColor, altRowBgColor, textColor, borderColor, fontSize, fontFamily } = item;
-    const font = fontFamily || 'sans-serif';
-    const numRows = data.length;
+export function renderTable(item: Extract<DrawItem, { type: 'table' }>): HTMLElement {
+    const table = document.createElement('table');
+    table.style.position = 'absolute';
+    table.style.left = `${item.x}px`;
+    table.style.top = `${item.y}px`;
+    table.style.borderCollapse = 'collapse';
+    table.style.fontFamily = item.fontFamily || 'sans-serif';
+    
+    const numRows = item.data.length;
     if (numRows > 0) {
-        const numCols = Math.max(...data.map(row => row.length));
-        let currentY = y;
         for (let r = 0; r < numRows; r++) {
+            const tr = document.createElement('tr');
             const isHeader = r === 0;
-            const bg = isHeader ? headerBgColor : (r % 2 === 0 ? altRowBgColor : rowBgColor);
-            const txtColor = isHeader ? headerTextColor : textColor;
-            const rowData = data[r];
-            let currentX = x;
-            for (let c = 0; c < numCols; c++) {
-                const cellText = rowData[c] !== undefined ? String(rowData[c]) : '';
-                if (bg && bg !== 'transparent') {
-                    ctx.fillStyle = bg;
-                    ctx.fillRect(currentX, currentY, cellWidth, cellHeight);
+            const bg = isHeader ? item.headerBgColor : (r % 2 === 0 ? item.altRowBgColor : item.rowBgColor);
+            const txtColor = isHeader ? item.headerTextColor : item.textColor;
+            
+            tr.style.backgroundColor = bg;
+            tr.style.color = txtColor;
+            tr.style.fontSize = `${item.fontSize}px`;
+            if (isHeader) tr.style.fontWeight = 'bold';
+            
+            for (let c = 0; c < item.data[r].length; c++) {
+                const td = document.createElement(isHeader ? 'th' : 'td');
+                td.style.width = `${item.cellWidth}px`;
+                td.style.height = `${item.cellHeight}px`;
+                td.style.textAlign = 'center';
+                td.style.verticalAlign = 'middle';
+                if (item.borderColor && item.borderColor !== 'transparent') {
+                    td.style.border = `1px solid ${item.borderColor}`;
                 }
-                if (borderColor && borderColor !== 'transparent') {
-                    ctx.strokeStyle = borderColor;
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(currentX, currentY, cellWidth, cellHeight);
-                }
-                ctx.font = `${isHeader ? 'bold ' : ''}${fontSize}px ${font}`;
-                ctx.fillStyle = txtColor;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(cellText, currentX + cellWidth / 2, currentY + cellHeight / 2);
-                currentX += cellWidth;
+                td.innerText = String(item.data[r][c]);
+                tr.appendChild(td);
             }
-            currentY += cellHeight;
+            table.appendChild(tr);
         }
     }
-    ctx.restore();
+    return table;
 }
 
-export function renderDrawItem(ctx: CanvasRenderingContext2D, item: DrawItem): void {
+export function renderMath(item: Extract<DrawItem, { type: 'math' }>): HTMLElement {
+    const div = document.createElement('div');
+    div.style.position = 'absolute';
+    div.style.left = `${item.x}px`;
+    div.style.top = `${item.y}px`;
+    div.style.color = item.color;
+    div.style.fontFamily = item.fontFamily;
+    div.style.fontSize = `${item.fontSize}px`;
+    // We can center it based on typical usage, or let it flow. Let's translate for centering to match canvas behavior.
+    div.style.transform = 'translate(-50%, -50%)'; 
+    div.innerHTML = katex.renderToString(item.formula, {
+        displayMode: item.displayMode,
+        throwOnError: false
+    });
+    return div;
+}
+
+export function renderDrawItem(item: DrawItem): HTMLElement | SVGElement | null {
     switch (item.type) {
-        case 'line':
-            renderLine(ctx, item);
-            break;
-        case 'text':
-            renderText(ctx, item);
-            break;
-        case 'paragraph':
-            renderParagraph(ctx, item);
-            break;
-        case 'fillRect':
-            renderFillRect(ctx, item);
-            break;
-        case 'drawRect':
-            renderDrawRect(ctx, item);
-            break;
-        case 'fillPolygon':
-            renderFillPolygon(ctx, item);
-            break;
-        case 'circle':
-            renderCircle(ctx, item);
-            break;
-        case 'ellipse':
-            renderEllipse(ctx, item);
-            break;
-        case 'arc':
-            renderArc(ctx, item);
-            break;
-        case 'image':
-            renderImage(ctx, item);
-            break;
-        case 'gradientRect':
-            renderGradientRect(ctx, item);
-            break;
-        case 'pointer':
-            renderPointer(ctx, item);
-            break;
-        case 'highlightRect':
-            renderHighlightRect(ctx, item);
-            break;
-        case 'codeBlock':
-            renderCodeBlock(ctx, item);
-            break;
-        case 'table':
-            renderTable(ctx, item);
-            break;
+        case 'line': return renderLine(item as any);
+        case 'text': return renderText(item as any);
+        case 'paragraph': return renderParagraph(item as any);
+        case 'fillRect': return renderFillRect(item as any);
+        case 'drawRect': return renderDrawRect(item as any);
+        case 'fillPolygon': return renderFillPolygon(item as any);
+        case 'circle': return renderCircle(item as any);
+        case 'ellipse': return renderEllipse(item as any);
+        case 'arc': return renderArc(item as any);
+        case 'image': return renderImage(item as any);
+        case 'gradientRect': return renderGradientRect(item as any);
+        case 'pointer': return renderPointer(item as any);
+        case 'highlightRect': return renderHighlightRect(item as any);
+        case 'codeBlock': return renderCodeBlock(item as any);
+        case 'table': return renderTable(item as any);
+        case 'math': return renderMath(item as any);
+        default: return null;
     }
 }
 

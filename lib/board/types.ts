@@ -28,6 +28,7 @@ export type DrawItem =
     | { type: 'highlightRect'; id: string; x: number; y: number; width: number; height: number; color: string }
     | { type: 'codeBlock'; id: string; code: string; language?: string; x: number; y: number; width: number; height: number; fontSize?: number }
     | { type: 'table'; id: string; data: string[][]; x: number; y: number; cellWidth: number; cellHeight: number; headerBgColor: string; headerTextColor: string; rowBgColor: string; altRowBgColor: string; textColor: string; borderColor: string; fontSize: number; fontFamily: string }
+    | { type: 'math'; id: string; formula: string; x: number; y: number; fontSize: number; fontFamily: string; color: string; displayMode: boolean }
     | { type: 'slideOutLeft'; duration: number }
     | { type: 'wait'; duration: number }
     | { type: 'delete'; id: string; duration?: number }

@@ -32,6 +32,9 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${playpenSans.variable} h-full antialiased light bg-white`}
     >
+      <head>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+      </head>
       <body className="min-h-full flex flex-col bg-white">{children}</body>
     </html>
   );
