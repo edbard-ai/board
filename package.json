@@ -1,6 +1,6 @@
 {
   "name": "edbard-board",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "A high-performance 2D and 3D interactive canvas animation & visualizer library.",
   "license": "MIT",
   "main": "./dist/index.js",

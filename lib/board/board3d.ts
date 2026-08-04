@@ -45,21 +45,24 @@ export class Board3D {
     this.camera.position.set(pos.x, pos.y, pos.z);
     
     // Set up renderer
+    const initialWidth = board.canvas.parentElement?.clientWidth || board.canvas.width;
+    const initialHeight = board.canvas.parentElement?.clientHeight || board.canvas.height;
+    
     this.renderer = new THREE.WebGLRenderer({ 
       alpha: options.alpha ?? true,
       antialias: true 
     });
-    this.renderer.setSize(board.canvas.width, board.canvas.height);
+    this.renderer.setSize(initialWidth, initialHeight);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     
-    // Style the canvas to overlay on top of the 2D canvas
     const canvas3d = this.renderer.domElement;
     canvas3d.style.position = 'absolute';
     canvas3d.style.top = '0';
     canvas3d.style.left = '0';
+    canvas3d.style.width = '100%';
+    canvas3d.style.height = '100%';
     canvas3d.style.pointerEvents = options.orbitControls ? 'auto' : 'none';
     
-    // Add to the same parent as the 2D canvas
     if (board.canvas.parentElement) {
       board.canvas.parentElement.style.position = 'relative';
       board.canvas.parentElement.appendChild(canvas3d);
@@ -69,15 +72,13 @@ export class Board3D {
       this.enableOrbitControls();
     }
     
-    // Default lighting
     this.addAmbientLight({ intensity: 0.5 });
     this.addDirectionalLight({ position: { x: 5, y: 5, z: 5 }, intensity: 0.8 });
     
-    // Handle resize
     if (board.canvas.parentElement) {
         const resizeObserver = new ResizeObserver(() => {
-            const width = board.canvas.clientWidth;
-            const height = board.canvas.clientHeight;
+            const width = board.canvas.parentElement?.clientWidth || 0;
+            const height = board.canvas.parentElement?.clientHeight || 0;
             if (width === 0 || height === 0) return;
             this.camera.aspect = width / height;
             this.camera.updateProjectionMatrix();

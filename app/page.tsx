@@ -1,55 +1,99 @@
 "use client"
 import { Board, BoardScriptCommand } from "@/lib/board"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 
 const boardUsagesDocs = `
-# Board Script Commands Reference
+# 🎨 Board Whiteboard Scripting Reference
 
-The board accepts a JSON array of command objects. You can use the following actions:
+The Board engine renders animated vector graphics and whiteboard steps from a structured JSON array of commands.
 
-\`\`\`typescript
-type BoardScriptCommand =
-  | { action: "text"; text: string; x: XCoord; y?: YCoord; fontSize?: SizeCoord; fontFamily?: string; color?: string; textAlign?: CanvasTextAlign; fontWeight?: string; fontStyle?: string }
-  | { action: "paragraph"; text: string; x: XCoord; y?: YCoord; width: SizeCoord; lineHeight?: number; fontSize?: SizeCoord; fontFamily?: string; color?: string; textAlign?: CanvasTextAlign; fontWeight?: string; fontStyle?: string }
-  | { action: "line"; x1: XCoord; y1: YCoord; x2: XCoord; y2: YCoord; color?: string; lineDash?: number[] }
-  | { action: "rect"; x: XCoord; y?: YCoord; width: SizeCoord; height: SizeCoord; color?: string; fillColor?: string; radius?: SizeCoord }
-  | { action: "fillRect"; x: XCoord; y?: YCoord; width: SizeCoord; height: SizeCoord; fillColor: string; radius?: SizeCoord }
-  | { action: "circle"; cx: XCoord; cy?: YCoord; radius: SizeCoord; color?: string; fillColor?: string }
-  | { action: "ellipse"; cx: XCoord; cy?: YCoord; radiusX: SizeCoord; radiusY: SizeCoord; rotation?: number; color?: string; fillColor?: string }
-  | { action: "arrow"; x1: XCoord; y1: YCoord; x2: XCoord; y2: YCoord; color?: string; headSize?: number }
-  | { action: "image"; src: string; x: XCoord; y?: YCoord; width?: SizeCoord; height?: SizeCoord; opacity?: number }
-  | { action: "codeBlock"; code: string; language?: string; x: XCoord; y?: YCoord; width: SizeCoord; height?: SizeCoord; fontSize?: SizeCoord }
-  | { action: "table"; data: string[][]; x: XCoord; y?: YCoord; cellWidth?: number; cellHeight?: number; headerBgColor?: string; headerTextColor?: string; rowBgColor?: string; altRowBgColor?: string; textColor?: string; borderColor?: string; fontSize?: SizeCoord; fontFamily?: string }
-  | { action: "math"; formula: string; x: XCoord; y?: YCoord; fontSize?: SizeCoord; color?: string; fontFamily?: string; displayMode?: boolean }
-  | { action: "polygon"; points: SemanticPoint[]; color?: string; fillColor?: string }
-  | { action: "diamond"; cx: XCoord; cy?: YCoord; width: SizeCoord; height: SizeCoord; color?: string; fillColor?: string }
-  | { action: "gridAxes"; x: XCoord; y?: YCoord; width: SizeCoord; height: SizeCoord; step?: number; color?: string }
-  | { action: "gradientRect"; x: XCoord; y?: YCoord; width: SizeCoord; height: SizeCoord; colors: string[]; direction?: "horizontal" | "vertical" | "diagonal" }
-  | { action: "pointer"; x: XCoord; y: YCoord; color?: string; size?: SizeCoord }
-  | { action: "highlight"; x: XCoord; y: YCoord; width: SizeCoord; height: SizeCoord; color?: string }
-  | { action: "wait"; duration: number }
-  | { action: "clear" }
-  | { action: "slideOutLeft"; duration?: number }
-  | { action: "setColor"; color: string }
-  | { action: "setLineWidth"; width: number }
-  | { action: "setSpeed"; speed: number }
-  | { action: "setBackground"; color: string };
+---
 
-type XCoord = number | 'center' | 'left' | 'right' | string; // string for % like "50%"
-type YCoord = number | 'center' | 'top' | 'bottom' | string;
-type SizeCoord = number | string;
-type SemanticPoint = { x: XCoord; y: YCoord };
-\`\`\`
+## 📐 Coordinate & Sizing Measurement System
 
-Example Script:
+The Board uses a flexible measurement system supporting both relative/responsive values and fixed pixels.
+
+### 1. Position Coordinates (\`XCoord\`, \`YCoord\`)
+- **Percentages (\`string\`)**: **[RECOMMENDED]** Percentage relative to logical canvas bounds (e.g., \`"50%"\`, \`"10%"\`, \`"85%"\`). Ensures 100% responsive scaling across all screen sizes.
+- **Keywords (\`string\`)**:
+  - \`x\`: \`"left"\` (\`0%\`), \`"center"\` (\`50%\`), \`"right"\` (\`100%\`)
+  - \`y\`: \`"top"\` (\`0%\`), \`"center"\` (\`50%\`), \`"bottom"\` (\`100%\`)
+- **Absolute Pixels (\`number\`)**: Direct pixel values (e.g., \`100\`, \`450\`). *Note: Fixed pixels do not adapt dynamically if aspect ratio changes.*
+
+### 2. Dimension Coordinates (\`SizeCoord\`)
+- **Percentages (\`string\`)**: Percentage relative to logical canvas width or height (e.g., \`"80%"\`, \`"35%"\`).
+- **Absolute Pixels (\`number\`)**: Fixed pixel size (e.g., \`24\` for font size, \`200\` for width).
+
+---
+
+## 📋 Available Commands & Schemas
+
+### ✏️ Text & Typography
+- **\`text\`**: Draw single or multi-line text (newline \`\\n\` supported).
+  \`{ "action": "text", "text": "Header", "x": "center", "y": "10%", "fontSize": 32, "color": "#00ffcc", "fontWeight": "bold", "textAlign": "center" }\`
+- **\`paragraph\`**: Multiline auto-wrapped text block.
+  \`{ "action": "paragraph", "text": "Explanation text...", "x": "10%", "y": "25%", "width": "80%", "fontSize": 20, "lineHeight": 1.6, "color": "#ffffff" }\`
+- **\`codeBlock\`**: Syntax-styled code block.
+  \`{ "action": "codeBlock", "code": "const x = 10;", "language": "javascript", "x": "15%", "y": "30%", "width": "70%", "fontSize": 16 }\`
+- **\`math\`**: Render LaTeX mathematical formula via KaTeX.
+  \`{ "action": "math", "formula": "\\\\int_0^\\\\infty e^{-x^2} dx = \\\\frac{\\\\sqrt{\\\\pi}}{2}", "x": "center", "y": "40%", "fontSize": 28, "color": "#f1c40f" }\`
+
+### 📐 Shapes & Vectors
+- **\`line\`**: Draw straight or dashed line between two points.
+  \`{ "action": "line", "x1": "10%", "y1": "15%", "x2": "90%", "y2": "15%", "color": "#f1c40f", "lineDash": [5, 5] }\`
+- **\`arrow\`**: Draw directional arrow.
+  \`{ "action": "arrow", "x1": "20%", "y1": "30%", "x2": "80%", "y2": "30%", "color": "#00ffcc", "headSize": 14 }\`
+- **\`rect\`**: Outline or filled rectangle with rounded corners.
+  \`{ "action": "rect", "x": "20%", "y": "30%", "width": "60%", "height": "40%", "color": "#00ffcc", "fillColor": "#071317", "radius": 12 }\`
+- **\`fillRect\`**: Filled solid rectangle.
+  \`{ "action": "fillRect", "x": "10%", "y": "20%", "width": "80%", "height": "50%", "fillColor": "#161b22", "radius": 8 }\`
+- **\`gradientRect\`**: Gradient rectangle.
+  \`{ "action": "gradientRect", "x": "10%", "y": "20%", "width": "80%", "height": "50%", "colors": ["#071317", "#1e293b"], "direction": "vertical" }\`
+- **\`circle\`**: Draw circle by center (\`cx\`, \`cy\`) and \`radius\`.
+  \`{ "action": "circle", "cx": "50%", "cy": "50%", "radius": "15%", "color": "#00ffcc", "fillColor": "#0f172a" }\`
+- **\`ellipse\`**: Draw ellipse with \`radiusX\` & \`radiusY\`.
+  \`{ "action": "ellipse", "cx": "50%", "cy": "50%", "radiusX": "20%", "radiusY": "10%", "rotation": 0, "color": "#ffffff" }\`
+- **\`diamond\`**: Flowchart diamond shape.
+  \`{ "action": "diamond", "cx": "50%", "cy": "50%", "width": "30%", "height": "20%", "color": "#f1c40f" }\`
+- **\`polygon\`**: Multi-point custom polygon.
+  \`{ "action": "polygon", "points": [{ "x": "50%", "y": "10%" }, { "x": "80%", "y": "60%" }, { "x": "20%", "y": "60%" }], "color": "#00ffcc", "fillColor": "#071317" }\`
+- **\`table\`**: Data table grid.
+  \`{ "action": "table", "data": [["Header 1", "Header 2"], ["Val 1", "Val 2"]], "x": "15%", "y": "35%", "cellWidth": 120, "cellHeight": 40, "headerBgColor": "#1a2332", "headerTextColor": "#00ffcc" }\`
+- **\`box\`**: Container with flex-like auto layout, padding, gap, and auto center alignment for child elements.
+  \`{ "action": "box", "x": "center", "y": "50%", "direction": "horizontal", "alignHorizontal": "center", "gap": 16, "padding": 20, "fillColor": "#0f172a", "color": "#6366f1", "title": "Auto-Centered Box", "items": [{ "action": "rect", "width": 80, "height": 80, "fillColor": "#3b82f6" }, { "action": "text", "text": "Signal", "fontSize": 18, "color": "#ffffff" }] }\`
+
+### 💡 Animation & Control
+- **\`wait\`**: Pause animation playback. \`{ "action": "wait", "duration": 500 }\` (in milliseconds)
+- **\`clear\`**: Clear board canvas. \`{ "action": "clear" }\`
+- **\`slideOutLeft\`**: Slide board elements out to the left. \`{ "action": "slideOutLeft", "duration": 400 }\`
+- **\`setBackground\`**: Set canvas background color. \`{ "action": "setBackground", "color": "#071317" }\`
+- **\`setColor\`**: Set global default stroke color. \`{ "action": "setColor", "color": "#ffffff" }\`
+- **\`setLineWidth\`**: Set global stroke width. \`{ "action": "setLineWidth", "width": 2 }\`
+- **\`setSpeed\`**: Set drawing animation speed. \`{ "action": "setSpeed", "speed": 35 }\`
+
+---
+
+## 💡 Best Practices for Responsive Layouts
+
+1. **Always use Percentages**: Prefer \`"10%"\`, \`"50%"\`, \`"80%"\` over hardcoded numbers like \`140\`, \`680\`.
+2. **Title Alignment**: Use \`"x": "center"\` with \`"textAlign": "center"\` for titles to guarantee centered placement.
+3. **Avoid Hardcoded Underlines**: Position lines relative to percentages (e.g., \`x1: "25%"\`, \`x2: "75%"\`).
+4. **Spacing & Layout Flow**: Keep top headers around \`y: "5%"\` - \`"15%"\`, primary content in \`y: "20%"\` - \`"75%"\`, and notes below \`"80%"\`.
+
+---
+
+## 📝 Complete Example Script
+
 \`\`\`json
 [
-  { "action": "setColor", "color": "#ffffff" },
-  { "action": "text", "text": "Binary Search", "x": "center", "y": 40, "fontSize": 36, "fontWeight": "bold", "color": "#4dd0e1" },
-  { "action": "line", "x1": 200, "y1": 70, "x2": 1080, "y2": 70, "color": "#2a3b50" },
+  { "action": "setBackground", "color": "#071317" },
+  { "action": "text", "text": "Logic Gates (Part 1)", "x": "center", "y": "8%", "fontSize": 32, "fontWeight": "bold", "color": "#f1c40f", "textAlign": "center" },
+  { "action": "line", "x1": "30%", "y1": "14%", "x2": "70%", "y2": "14%", "color": "#f1c40f" },
+  { "action": "wait", "duration": 400 },
+  { "action": "text", "text": "Definition:", "x": "10%", "y": "22%", "fontSize": 22, "fontWeight": "bold", "color": "#00ffcc" },
+  { "action": "paragraph", "text": "A physical device performing a logical operation on one or more inputs to produce a single output.", "x": "10%", "y": "28%", "width": "80%", "fontSize": 18, "lineHeight": 1.5, "color": "#ffffff" },
   { "action": "wait", "duration": 500 },
-  { "action": "text", "text": "A sorted array:", "x": 50, "y": 120, "fontSize": 20, "color": "#b0bec5" },
-  { "action": "table", "data": [["1", "3", "5", "7", "9", "11", "15"]], "x": 50, "y": 160, "cellWidth": 80, "cellHeight": 40, "headerBgColor": "#1a2332", "headerTextColor": "#4dd0e1", "rowBgColor": "#0f1b26", "textColor": "#ffffff", "borderColor": "#2a3b50" }
+  { "action": "rect", "x": "10%", "y": "45%", "width": "80%", "height": "40%", "color": "#00ffcc", "fillColor": "#0f172a", "radius": 12 }
 ]
 \`\`\`
 `.trim();
@@ -59,9 +103,6 @@ export default function Home() {
   const [showDocs, setShowDocs] = useState(false)
   const [showPlay, setShowPlay] = useState(false)
   const [scriptInput, setScriptInput] = useState("")
-
-  const wrapperRef = useRef<HTMLDivElement>(null)
-  const boardRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -74,7 +115,8 @@ export default function Home() {
         speed: 35,
         background: "#060d12",
         hiDpi: true,
-        fontFamily: "'Playpen Sans', sans-serif"
+        fontFamily: "'Playpen Sans', sans-serif",
+        fitMode: "contain"
       })
       
       setBoard(b)
@@ -95,32 +137,9 @@ export default function Home() {
       initBoard()
     }
 
-    const handleResize = () => {
-      if (wrapperRef.current && boardRef.current) {
-        const wrapperWidth = wrapperRef.current.clientWidth;
-        const scale = wrapperWidth / 1400; 
-        
-        boardRef.current.style.transform = `scale(${scale})`;
-        wrapperRef.current.style.height = `${870 * scale}px`; 
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-    
-    const resizeObserver = new ResizeObserver(() => {
-      handleResize();
-    });
-    
-    if (wrapperRef.current) {
-      resizeObserver.observe(wrapperRef.current);
-    }
-    
-    setTimeout(handleResize, 50);
-
     return () => {
       isMounted = false
-      window.removeEventListener("resize", handleResize);
-      resizeObserver.disconnect();
+      if (b) b.destroy()
       const el = document.getElementById("board")
       if (el) el.innerHTML = ""
     }
@@ -146,7 +165,6 @@ export default function Home() {
   return (
     <div className="w-full min-h-screen flex flex-col items-center bg-gray-950 p-2 sm:p-4 font-sans text-gray-200">
       
-      {/* Controls */}
       <div className="w-full max-w-[1400px] flex justify-end gap-4 mb-4">
         <button 
           onClick={() => setShowDocs(true)}
@@ -163,10 +181,9 @@ export default function Home() {
       </div>
 
       <div 
-        ref={wrapperRef} 
-        className="w-full max-w-[1400px] rounded-xl shadow-2xl overflow-hidden border border-gray-800 bg-[#060d12]"
+        className="w-full max-w-[1400px] aspect-[1400/870] max-h-[80vh] rounded-xl shadow-2xl overflow-hidden border border-gray-800 bg-[#060d12]"
       >
-        <div ref={boardRef} id="board" className="origin-top-left" />
+        <div id="board" className="w-full h-full" />
       </div>
 
       {/* Docs Dialog */}

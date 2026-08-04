@@ -43,7 +43,8 @@ export function runDrawQueueAnimation(
     drawQueue: DrawItem[],
     speed: number,
     onComplete: () => void,
-    onSlideOut: (duration: number) => Promise<void>
+    onSlideOut: (duration: number) => Promise<void>,
+    activeElementsMap?: Map<string, DrawItem>
 ): void {
     if (drawQueue.length === 0) {
         onComplete();
@@ -51,7 +52,7 @@ export function runDrawQueueAnimation(
     }
 
     let queueIndex = 0;
-    const activeElements: Map<string, DrawItem> = new Map();
+    const activeElements: Map<string, DrawItem> = activeElementsMap || new Map();
 
     let currentX = 0;
     let currentY = 0;
@@ -366,6 +367,13 @@ export function runDrawQueueAnimation(
                     textCharIndex = 0;
                     remainingDistanceBudget -= ctx.measureText(currentItem.text).width || 50;
                 } else {
+                    ctx.clearRect(-10000, -10000, 20000, 20000);
+                    renderActiveElementsExcept();
+
+                    if (textCharIndex > 0) {
+                        ctx.fillText(currentItem.text.substring(0, textCharIndex), currentItem.x, currentItem.y);
+                    }
+
                     while (remainingDistanceBudget > 0 && textCharIndex < currentItem.text.length) {
                         const char = currentItem.text[textCharIndex];
                         ctx.fillText(char, textX, currentItem.y);

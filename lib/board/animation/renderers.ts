@@ -21,7 +21,15 @@ export function renderText(ctx: CanvasRenderingContext2D, item: Extract<DrawItem
     ctx.fillStyle = item.color;
     if (item.textAlign) ctx.textAlign = item.textAlign;
     if (item.textBaseline) ctx.textBaseline = item.textBaseline;
-    ctx.fillText(item.text, item.x, item.y, item.maxWidth);
+    const lines = item.text.split('\n');
+    if (lines.length > 1) {
+        const lh = item.fontSize * 1.3;
+        lines.forEach((line, i) => {
+            ctx.fillText(line, item.x, item.y + i * lh, item.maxWidth);
+        });
+    } else {
+        ctx.fillText(item.text, item.x, item.y, item.maxWidth);
+    }
     ctx.restore();
 }
 
@@ -33,23 +41,27 @@ export function renderParagraph(ctx: CanvasRenderingContext2D, item: Extract<Dra
     ctx.fillStyle = item.color;
     if (item.textAlign) ctx.textAlign = item.textAlign;
 
-    const words = item.text.split(' ');
-    let line = '';
+    const paragraphLines = item.text.split('\n');
     let currY = item.y;
     const lh = item.fontSize * item.lineHeight;
 
-    for (let n = 0; n < words.length; n++) {
-        const testLine = line + words[n] + ' ';
-        const metrics = ctx.measureText(testLine);
-        if (metrics.width > item.width && n > 0) {
-            ctx.fillText(line, item.x, currY);
-            line = words[n] + ' ';
-            currY += lh;
-        } else {
-            line = testLine;
+    for (const pLine of paragraphLines) {
+        const words = pLine.split(' ');
+        let line = '';
+        for (let n = 0; n < words.length; n++) {
+            const testLine = line + words[n] + ' ';
+            const metrics = ctx.measureText(testLine);
+            if (metrics.width > item.width && n > 0) {
+                ctx.fillText(line, item.x, currY);
+                line = words[n] + ' ';
+                currY += lh;
+            } else {
+                line = testLine;
+            }
         }
+        ctx.fillText(line, item.x, currY);
+        currY += lh;
     }
-    ctx.fillText(line, item.x, currY);
     ctx.restore();
 }
 

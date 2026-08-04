@@ -20,6 +20,7 @@ import {
     DrawGridAxesOptions,
     DrawCodeBlockOptions,
     DrawTableOptions,
+    DrawBoxOptions,
     BoardOptions,
     WriteMathOptions,
     XCoord,
@@ -65,6 +66,7 @@ export type {
     DrawGridAxesOptions,
     DrawCodeBlockOptions,
     DrawTableOptions,
+    DrawBoxOptions,
     BoardOptions,
     WriteMathOptions,
     XCoord,
@@ -91,6 +93,13 @@ export class Board {
     speed: number = 15;
     fontFamily: string = '"Playpen Sans", sans-serif';
     
+    fitMode: 'contain' | 'cover' | 'fill' = 'contain';
+    hiDpi: boolean = true;
+    viewportScale: number = 1;
+    viewportOffsetX: number = 0;
+    viewportOffsetY: number = 0;
+    private resizeObserver: ResizeObserver | null = null;
+    renderedItems: Map<string, DrawItem> = new Map();
     private stateStack: { color: string; lineWidth: number; opacity: number; lineDash: number[] }[] = [];
 
     constructor(id: string, width: number, height: number, options?: BoardOptions) {
@@ -99,6 +108,8 @@ export class Board {
         if (options?.fontFamily) {
             this.fontFamily = options.fontFamily;
         }
+        this.fitMode = options?.fitMode ?? 'contain';
+        this.hiDpi = options?.hiDpi ?? true;
         this._logicalWidth = width;
         this._logicalHeight = height;
         this.container = document.getElementById(id)! as HTMLDivElement;
@@ -106,21 +117,13 @@ export class Board {
         this.container.innerHTML = '';
         this.container.style.position = 'relative';
         this.container.style.overflow = 'hidden';
-        this.container.style.width = width + 'px';
-        this.container.style.height = height + 'px';
+        this.container.style.width = '100%';
+        this.container.style.height = '100%';
 
         this.canvas = document.createElement('canvas');
-        
-        const hiDpi = options?.hiDpi ?? true;
-        const dpr = hiDpi ? (window.devicePixelRatio || 1) : 1;
-        
-        this.canvas.width = width * dpr;
-        this.canvas.height = height * dpr;
         this.canvas.style.position = 'absolute';
         this.canvas.style.left = '0';
         this.canvas.style.top = '0';
-        this.canvas.style.width = width + 'px';
-        this.canvas.style.height = height + 'px';
         this.canvas.style.cursor = 'crosshair';
         this.canvas.style.touchAction = 'none';
         this.container.appendChild(this.canvas);
@@ -128,16 +131,119 @@ export class Board {
         const ctx = this.canvas.getContext('2d');
         if (!ctx) throw new Error("Could not get 2D context from canvas");
         this.ctx = ctx;
-        
-        if (hiDpi && dpr !== 1) {
-            this.ctx.scale(dpr, dpr);
-        }
 
-        this.ctx.lineCap = 'round';
-        this.ctx.lineJoin = 'round';
+        this.updateViewport();
 
         if (options?.background) {
             this.setBackground(options.background);
+        }
+
+        if (options?.responsive !== false) {
+            this.initResizeObserver();
+        }
+    }
+
+    private initResizeObserver() {
+        if (typeof ResizeObserver !== 'undefined') {
+            this.resizeObserver = new ResizeObserver(() => {
+                this.updateViewport();
+                this.redraw();
+            });
+            this.resizeObserver.observe(this.container);
+        }
+    }
+
+    public updateViewport() {
+        const containerWidth = this.container.clientWidth || this._logicalWidth;
+        const containerHeight = this.container.clientHeight || this._logicalHeight;
+        const dpr = this.hiDpi ? (window.devicePixelRatio || 1) : 1;
+
+        this.canvas.width = Math.floor(containerWidth * dpr);
+        this.canvas.height = Math.floor(containerHeight * dpr);
+        this.canvas.style.width = containerWidth + 'px';
+        this.canvas.style.height = containerHeight + 'px';
+
+        const scaleX = containerWidth / this._logicalWidth;
+        const scaleY = containerHeight / this._logicalHeight;
+
+        if (this.fitMode === 'contain') {
+            const scale = Math.min(scaleX, scaleY);
+            this.viewportScale = scale;
+            this.viewportOffsetX = (containerWidth - this._logicalWidth * scale) / 2;
+            this.viewportOffsetY = (containerHeight - this._logicalHeight * scale) / 2;
+        } else if (this.fitMode === 'cover') {
+            const scale = Math.max(scaleX, scaleY);
+            this.viewportScale = scale;
+            this.viewportOffsetX = (containerWidth - this._logicalWidth * scale) / 2;
+            this.viewportOffsetY = (containerHeight - this._logicalHeight * scale) / 2;
+        } else {
+            this.viewportScale = scaleX;
+            this.viewportOffsetX = 0;
+            this.viewportOffsetY = 0;
+        }
+
+        this.applyViewportTransform();
+    }
+
+    public applyViewportTransform() {
+        const dpr = this.hiDpi ? (window.devicePixelRatio || 1) : 1;
+        if (this.fitMode === 'fill') {
+            const containerWidth = this.container.clientWidth || this._logicalWidth;
+            const containerHeight = this.container.clientHeight || this._logicalHeight;
+            const scaleX = containerWidth / this._logicalWidth;
+            const scaleY = containerHeight / this._logicalHeight;
+            this.ctx.setTransform(scaleX * dpr, 0, 0, scaleY * dpr, 0, 0);
+        } else {
+            this.ctx.setTransform(
+                this.viewportScale * dpr,
+                0,
+                0,
+                this.viewportScale * dpr,
+                this.viewportOffsetX * dpr,
+                this.viewportOffsetY * dpr
+            );
+        }
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+    }
+
+    public redraw() {
+        this.applyViewportTransform();
+        this.ctx.clearRect(-10000, -10000, 20000, 20000);
+        this.renderedItems.forEach((item) => {
+            renderDrawItem(this.ctx, item);
+        });
+    }
+
+    public clientToLogical(clientX: number, clientY: number): Point {
+        const rect = this.canvas.getBoundingClientRect();
+        const canvasX = clientX - rect.left;
+        const canvasY = clientY - rect.top;
+        if (this.fitMode === 'fill') {
+            const containerWidth = this.container.clientWidth || this._logicalWidth;
+            const containerHeight = this.container.clientHeight || this._logicalHeight;
+            return {
+                x: canvasX / (containerWidth / this._logicalWidth),
+                y: canvasY / (containerHeight / this._logicalHeight)
+            };
+        }
+        return {
+            x: (canvasX - this.viewportOffsetX) / (this.viewportScale || 1),
+            y: (canvasY - this.viewportOffsetY) / (this.viewportScale || 1)
+        };
+    }
+
+    public destroy() {
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+            this.resizeObserver = null;
+        }
+    }
+
+    private renderDirect(item: DrawItem) {
+        renderDrawItem(this.ctx, item);
+        if ('id' in item && item.id) {
+            this.renderedItems.set(item.id, item);
         }
     }
 
@@ -201,15 +307,16 @@ export class Board {
     }
 
     private resolveX(x: XCoord): number {
-        if (typeof x === 'number') return x;
+        if (typeof x === 'number') return Math.max(x, 25);
         if (typeof x === 'string' && x.endsWith('%')) {
             const val = parseFloat(x);
-            return !isNaN(val) ? (val / 100) * this._logicalWidth : 0;
+            const calculated = !isNaN(val) ? (val / 100) * this._logicalWidth : 0;
+            return Math.max(calculated, 25);
         }
         if (x === 'center') return this._logicalWidth / 2;
-        if (x === 'left') return 0;
-        if (x === 'right') return this._logicalWidth;
-        return 0;
+        if (x === 'left') return 25;
+        if (x === 'right') return this._logicalWidth - 25;
+        return 25;
     }
 
     private resolveY(y: YCoord): number {
@@ -281,7 +388,8 @@ export class Board {
     }
 
     clear() {
-        this.ctx.clearRect(0, 0, this._logicalWidth, this._logicalHeight);
+        this.renderedItems.clear();
+        this.ctx.clearRect(-10000, -10000, 20000, 20000);
     }
 
     beginTrigger() {
@@ -304,6 +412,9 @@ export class Board {
     delete(id: string, durationMs: number = 300) {
         if (this.isRecording) {
             this.drawQueue.push({ type: 'delete', id, duration: durationMs });
+        } else {
+            this.renderedItems.delete(id);
+            this.redraw();
         }
     }
 
@@ -341,7 +452,8 @@ export class Board {
             () => {
                 this.isAnimating = false;
             },
-            (duration) => this.slideOutLeftHelper(duration)
+            (duration) => this.slideOutLeftHelper(duration),
+            this.renderedItems
         );
     }
 
@@ -357,7 +469,7 @@ export class Board {
             this.drawQueue.push(item);
             return itemId;
         }
-        renderDrawItem(this.ctx, item);
+        this.renderDirect(item);
         return itemId;
     }
 
@@ -384,7 +496,7 @@ export class Board {
             this.drawQueue.push(item);
             return itemId;
         }
-        renderDrawItem(this.ctx, item);
+        this.renderDirect(item);
         return itemId;
     }
 
@@ -413,7 +525,7 @@ export class Board {
             this.drawQueue.push(item);
             return itemId;
         }
-        renderDrawItem(this.ctx, item);
+        this.renderDirect(item);
         return itemId;
     }
 
@@ -425,7 +537,7 @@ export class Board {
             this.drawQueue.push(item);
             return itemId;
         }
-        renderDrawItem(this.ctx, item);
+        this.renderDirect(item);
         return itemId;
     }
 
@@ -437,7 +549,7 @@ export class Board {
             this.drawQueue.push(item);
             return itemId;
         }
-        renderDrawItem(this.ctx, item);
+        this.renderDirect(item);
         return itemId;
     }
 
@@ -449,7 +561,7 @@ export class Board {
             this.drawQueue.push(item);
             return itemId;
         }
-        renderDrawItem(this.ctx, item);
+        this.renderDirect(item);
         return itemId;
     }
 
@@ -471,7 +583,7 @@ export class Board {
             this.drawQueue.push(item);
             return itemId;
         }
-        renderDrawItem(this.ctx, item);
+        this.renderDirect(item);
         return itemId;
     }
 
@@ -493,7 +605,7 @@ export class Board {
             this.drawQueue.push(item);
             return itemId;
         }
-        renderDrawItem(this.ctx, item);
+        this.renderDirect(item);
         return itemId;
     }
 
@@ -515,7 +627,7 @@ export class Board {
             this.drawQueue.push(item);
             return itemId;
         }
-        renderDrawItem(this.ctx, item);
+        this.renderDirect(item);
         return itemId;
     }
 
@@ -537,7 +649,7 @@ export class Board {
             this.drawQueue.push(item);
             return itemId;
         }
-        renderDrawItem(this.ctx, item);
+        this.renderDirect(item);
         return itemId;
     }
 
@@ -557,7 +669,7 @@ export class Board {
             this.drawQueue.push(item);
             return itemId;
         }
-        renderDrawItem(this.ctx, item);
+        this.renderDirect(item);
         return itemId;
     }
 
@@ -619,7 +731,7 @@ export class Board {
             this.drawQueue.push(item);
             return itemId;
         }
-        renderDrawItem(this.ctx, item);
+        this.renderDirect(item);
         return itemId;
     }
 
@@ -632,7 +744,7 @@ export class Board {
             this.drawQueue.push(item);
             return itemId;
         }
-        renderDrawItem(this.ctx, item);
+        this.renderDirect(item);
         return itemId;
     }
 
@@ -669,7 +781,7 @@ export class Board {
             this.drawQueue.push(item);
             return itemId;
         }
-        renderDrawItem(this.ctx, item);
+        this.renderDirect(item);
         return itemId;
     }
 
@@ -709,7 +821,7 @@ export class Board {
             this.drawQueue.push(item);
             return itemId;
         }
-        renderDrawItem(this.ctx, item);
+        this.renderDirect(item);
         return itemId;
     }
 
@@ -787,6 +899,286 @@ export class Board {
         return itemId;
     }
 
+    estimateCommandSize(cmd: BoardScriptCommand): { w: number; h: number } {
+        switch (cmd.action) {
+            case 'text': {
+                const fs = cmd.fontSize ? this.resolveSize(cmd.fontSize) : 18;
+                const lines = (cmd.text || '').split('\n');
+                let maxLen = 0;
+                lines.forEach((l) => { if (l.length > maxLen) maxLen = l.length; });
+                return { w: maxLen * fs * 0.6, h: lines.length * fs * 1.2 };
+            }
+            case 'paragraph': {
+                const fs = cmd.fontSize ? this.resolveSize(cmd.fontSize) : 16;
+                const w = this.resolveWidth(cmd.width);
+                const approxLines = Math.max(1, Math.ceil(((cmd.text || '').length * fs * 0.5) / w));
+                return { w, h: approxLines * fs * (cmd.lineHeight || 1.4) };
+            }
+            case 'rect':
+            case 'fillRect':
+            case 'gradientRect': {
+                return { w: this.resolveWidth(cmd.width), h: this.resolveHeight(cmd.height) };
+            }
+            case 'circle': {
+                const r = this.resolveSize(cmd.radius);
+                return { w: r * 2, h: r * 2 };
+            }
+            case 'ellipse': {
+                const rx = this.resolveSize(cmd.radiusX);
+                const ry = this.resolveSize(cmd.radiusY);
+                return { w: rx * 2, h: ry * 2 };
+            }
+            case 'diamond': {
+                return { w: this.resolveWidth(cmd.width), h: this.resolveHeight(cmd.height) };
+            }
+            case 'codeBlock': {
+                const w = this.resolveWidth(cmd.width);
+                const h = cmd.height ? this.resolveHeight(cmd.height) : 120;
+                return { w, h };
+            }
+            case 'table': {
+                const cols = cmd.data?.[0]?.length || 1;
+                const rows = cmd.data?.length || 1;
+                const cw = cmd.cellWidth || 100;
+                const ch = cmd.cellHeight || 36;
+                return { w: cols * cw, h: rows * ch };
+            }
+            case 'math': {
+                const fs = cmd.fontSize ? this.resolveSize(cmd.fontSize) : 22;
+                return { w: Math.max(80, (cmd.formula || '').length * fs * 0.55), h: fs * 1.8 };
+            }
+            case 'image': {
+                const w = cmd.width ? this.resolveWidth(cmd.width) : 120;
+                const h = cmd.height ? this.resolveHeight(cmd.height) : 120;
+                return { w, h };
+            }
+            case 'line':
+            case 'arrow': {
+                const x1 = this.resolveX(cmd.x1);
+                const x2 = this.resolveX(cmd.x2);
+                const y1 = this.resolveY(cmd.y1);
+                const y2 = this.resolveY(cmd.y2);
+                return { w: Math.max(20, Math.abs(x2 - x1)), h: Math.max(20, Math.abs(y2 - y1)) };
+            }
+            case 'box': {
+                const gap = cmd.gap ?? 12;
+                const isRow = cmd.direction === 'horizontal' || cmd.direction === 'row' || !cmd.direction;
+                const items = cmd.items || [];
+                const childSizes = items.map((child) => this.estimateCommandSize(child));
+                let cW = 0, cH = 0;
+                if (isRow) {
+                    childSizes.forEach((sz, idx) => {
+                        cW += sz.w + (idx > 0 ? gap : 0);
+                        cH = Math.max(cH, sz.h);
+                    });
+                } else {
+                    childSizes.forEach((sz, idx) => {
+                        cW = Math.max(cW, sz.w);
+                        cH += sz.h + (idx > 0 ? gap : 0);
+                    });
+                }
+                let pTop = 16, pRight = 16, pBottom = 16, pLeft = 16;
+                if (typeof cmd.padding === 'number') {
+                    pTop = pRight = pBottom = pLeft = cmd.padding;
+                } else if (cmd.padding && typeof cmd.padding === 'object') {
+                    pTop = cmd.padding.top ?? 16;
+                    pRight = cmd.padding.right ?? 16;
+                    pBottom = cmd.padding.bottom ?? 16;
+                    pLeft = cmd.padding.left ?? 16;
+                }
+                const finalW = (cmd.width === undefined || cmd.width === 'auto') ? (cW + pLeft + pRight) : this.resolveWidth(cmd.width as SizeCoord);
+                const finalH = (cmd.height === undefined || cmd.height === 'auto') ? (cH + pTop + pBottom) : this.resolveHeight(cmd.height as SizeCoord);
+                return { w: finalW, h: finalH };
+            }
+            default:
+                return { w: 60, h: 40 };
+        }
+    }
+
+    private offsetCommand(cmd: BoardScriptCommand, itemX: number, itemY: number, sz: { w: number; h: number }): BoardScriptCommand {
+        const copy: any = { ...cmd };
+        switch (cmd.action) {
+            case 'text':
+                copy.x = itemX;
+                copy.y = itemY;
+                break;
+            case 'paragraph':
+            case 'rect':
+            case 'fillRect':
+            case 'gradientRect':
+            case 'codeBlock':
+            case 'table':
+            case 'image':
+            case 'box':
+                copy.x = itemX;
+                copy.y = itemY;
+                break;
+            case 'circle':
+            case 'ellipse':
+            case 'diamond':
+                copy.cx = itemX + sz.w / 2;
+                copy.cy = itemY + sz.h / 2;
+                break;
+            case 'math':
+                copy.x = itemX;
+                copy.y = itemY;
+                break;
+            case 'line':
+            case 'arrow':
+                copy.x1 = itemX;
+                copy.y1 = itemY + sz.h / 2;
+                copy.x2 = itemX + sz.w;
+                copy.y2 = itemY + sz.h / 2;
+                break;
+        }
+        return copy;
+    }
+
+    drawBox(options: DrawBoxOptions): string {
+        const itemId = options.id || this.generateId();
+        const items = options.items || [];
+        const gap = options.gap ?? 12;
+        const isRow = options.direction === 'horizontal' || options.direction === 'row' || !options.direction;
+        const alignH = options.alignHorizontal ?? 'center';
+        const alignV = options.alignVertical ?? 'center';
+
+        let pTop = 16, pRight = 16, pBottom = 16, pLeft = 16;
+        if (typeof options.padding === 'number') {
+            pTop = pRight = pBottom = pLeft = options.padding;
+        } else if (options.padding && typeof options.padding === 'object') {
+            pTop = options.padding.top ?? 16;
+            pRight = options.padding.right ?? 16;
+            pBottom = options.padding.bottom ?? 16;
+            pLeft = options.padding.left ?? 16;
+        }
+
+        const itemSizes = items.map((cmd) => this.estimateCommandSize(cmd));
+
+        let contentWidth = 0;
+        let contentHeight = 0;
+
+        if (isRow) {
+            let totalW = 0;
+            let maxH = 0;
+            itemSizes.forEach((sz, idx) => {
+                totalW += sz.w + (idx > 0 ? gap : 0);
+                maxH = Math.max(maxH, sz.h);
+            });
+            contentWidth = totalW;
+            contentHeight = maxH;
+        } else {
+            let maxW = 0;
+            let totalH = 0;
+            itemSizes.forEach((sz, idx) => {
+                maxW = Math.max(maxW, sz.w);
+                totalH += sz.h + (idx > 0 ? gap : 0);
+            });
+            contentWidth = maxW;
+            contentHeight = totalH;
+        }
+
+        const calculatedWidth = contentWidth + pLeft + pRight;
+        const calculatedHeight = contentHeight + pTop + pBottom;
+
+        const boxW = (options.width === undefined || options.width === 'auto')
+            ? calculatedWidth
+            : this.resolveWidth(options.width as SizeCoord);
+        const boxH = (options.height === undefined || options.height === 'auto')
+            ? calculatedHeight
+            : this.resolveHeight(options.height as SizeCoord);
+
+        const { posX: rawX, posY: rawY } = this.resolveXY(options.x ?? 'center', options.y ?? 'center');
+
+        let boxX = rawX;
+        if (options.x === 'center' || options.x === undefined) {
+            boxX = rawX - boxW / 2;
+        }
+        let boxY = rawY;
+        if (options.y === 'center' || options.y === undefined) {
+            boxY = rawY - boxH / 2;
+        }
+
+        if (options.fillColor || options.color) {
+            this.drawRect({
+                id: itemId + '_bg',
+                x: boxX,
+                y: boxY,
+                width: boxW,
+                height: boxH,
+                color: options.color,
+                fillColor: options.fillColor,
+                radius: options.radius ?? 12,
+            });
+        }
+
+        if (options.title) {
+            this.writeText({
+                id: itemId + '_title',
+                text: options.title,
+                x: boxX + pLeft,
+                y: boxY + Math.min(pTop, 16),
+                fontSize: 14,
+                fontWeight: 'bold',
+                color: options.color || this.color,
+            });
+        }
+
+        const contentAreaX = boxX + pLeft;
+        const contentAreaY = boxY + pTop;
+        const contentAreaW = Math.max(0, boxW - pLeft - pRight);
+        const contentAreaH = Math.max(0, boxH - pTop - pBottom);
+
+        if (isRow) {
+            let startX = contentAreaX;
+            if (alignH === 'center') {
+                startX = contentAreaX + (contentAreaW - contentWidth) / 2;
+            } else if (alignH === 'right') {
+                startX = contentAreaX + contentAreaW - contentWidth;
+            }
+
+            let currX = startX;
+            items.forEach((cmd, idx) => {
+                const sz = itemSizes[idx];
+                let itemY = contentAreaY;
+                if (alignV === 'center') {
+                    itemY = contentAreaY + (contentAreaH - sz.h) / 2;
+                } else if (alignV === 'bottom') {
+                    itemY = contentAreaY + contentAreaH - sz.h;
+                }
+
+                const positionedCmd = this.offsetCommand(cmd, currX, itemY, sz);
+                this.processScript([positionedCmd]);
+
+                currX += sz.w + gap;
+            });
+        } else {
+            let startY = contentAreaY;
+            if (alignV === 'center') {
+                startY = contentAreaY + (contentAreaH - contentHeight) / 2;
+            } else if (alignV === 'bottom') {
+                startY = contentAreaY + contentAreaH - contentHeight;
+            }
+
+            let currY = startY;
+            items.forEach((cmd, idx) => {
+                const sz = itemSizes[idx];
+                let itemX = contentAreaX;
+                if (alignH === 'center') {
+                    itemX = contentAreaX + (contentAreaW - sz.w) / 2;
+                } else if (alignH === 'right') {
+                    itemX = contentAreaX + contentAreaW - sz.w;
+                }
+
+                const positionedCmd = this.offsetCommand(cmd, itemX, currY, sz);
+                this.processScript([positionedCmd]);
+
+                currY += sz.h + gap;
+            });
+        }
+
+        return itemId;
+    }
+
     private slideOutLeftHelper(durationMs: number = 400): Promise<void> {
         return slideOutLeftAnimation(this.canvas, this.ctx, durationMs, () => this.clear());
     }
@@ -859,6 +1251,9 @@ export class Board {
                     break;
                 case "highlight":
                     this.highlightRect(cmd.x, cmd.y, cmd.width, cmd.height, cmd.color);
+                    break;
+                case "box":
+                    this.drawBox(cmd);
                     break;
                 case "wait":
                     this.wait(cmd.duration);

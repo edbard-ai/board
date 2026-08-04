@@ -248,6 +248,8 @@ export interface BoardOptions {
     background?: string;
     hiDpi?: boolean;
     fontFamily?: string;
+    fitMode?: 'contain' | 'cover' | 'fill';
+    responsive?: boolean;
 }
 
 export interface WriteMathOptions {
@@ -259,6 +261,25 @@ export interface WriteMathOptions {
     color?: string;
     fontFamily?: string;
     displayMode?: boolean;
+}
+
+export interface DrawBoxOptions {
+    id?: string;
+    x?: XCoord | SemanticPoint;
+    y?: YCoord;
+    width?: SizeCoord | 'auto';
+    height?: SizeCoord | 'auto';
+    padding?: number | { top?: number; right?: number; bottom?: number; left?: number };
+    gap?: number;
+    direction?: 'horizontal' | 'vertical' | 'row' | 'column';
+    alignHorizontal?: 'left' | 'center' | 'right' | 'space-between' | 'space-around';
+    alignVertical?: 'top' | 'center' | 'bottom' | 'space-between' | 'space-around';
+    wrap?: boolean;
+    color?: string;
+    fillColor?: string;
+    radius?: SizeCoord;
+    title?: string;
+    items?: BoardScriptCommand[];
 }
 
 export type BoardScriptCommand =
@@ -280,6 +301,7 @@ export type BoardScriptCommand =
     | { action: "gradientRect"; x: XCoord; y?: YCoord; width: SizeCoord; height: SizeCoord; colors: string[]; direction?: "horizontal" | "vertical" | "diagonal" }
     | { action: "pointer"; x: XCoord; y: YCoord; color?: string; size?: SizeCoord }
     | { action: "highlight"; x: XCoord; y: YCoord; width: SizeCoord; height: SizeCoord; color?: string }
+    | { action: "box"; x?: XCoord | SemanticPoint; y?: YCoord; width?: SizeCoord | 'auto'; height?: SizeCoord | 'auto'; padding?: number | { top?: number; right?: number; bottom?: number; left?: number }; gap?: number; direction?: 'horizontal' | 'vertical' | 'row' | 'column'; alignHorizontal?: 'left' | 'center' | 'right' | 'space-between' | 'space-around'; alignVertical?: 'top' | 'center' | 'bottom' | 'space-between' | 'space-around'; wrap?: boolean; color?: string; fillColor?: string; radius?: SizeCoord; title?: string; items?: BoardScriptCommand[] }
     | { action: "wait"; duration: number }
     | { action: "clear" }
     | { action: "slideOutLeft"; duration?: number }
