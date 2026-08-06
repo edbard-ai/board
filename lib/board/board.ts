@@ -474,13 +474,15 @@ export class Board {
         textBaseline,
         fontWeight,
         fontStyle,
+        textDecoration,
+        underline,
         maxWidth
     }: WriteTextOptions): string {
         const itemId = id || this.generateId();
         const { posX, posY } = this.resolveXY(x, y);
         const itemColor = color || this.color;
         const font = fontFamily || this.fontFamily;
-        const item: DrawItem = { type: 'text', id: itemId, text, x: posX, y: posY, fontSize: this.resolveSize(rawFontSize), fontFamily: font, color: itemColor, textAlign, textBaseline, fontWeight, fontStyle, maxWidth };
+        const item: DrawItem = { type: 'text', id: itemId, text, x: posX, y: posY, fontSize: this.resolveSize(rawFontSize), fontFamily: font, color: itemColor, textAlign, textBaseline, fontWeight, fontStyle, textDecoration, underline, maxWidth };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -503,13 +505,15 @@ export class Board {
         color,
         textAlign,
         fontWeight,
-        fontStyle
+        fontStyle,
+        textDecoration,
+        underline
     }: WriteParagraphOptions): string {
         const itemId = id || this.generateId();
         const { posX, posY } = this.resolveXY(x, y);
         const itemColor = color || this.color;
         const font = fontFamily || this.fontFamily;
-        const item: DrawItem = { type: 'paragraph', id: itemId, text, x: posX, y: posY, width: this.resolveWidth(width), lineHeight, fontSize: this.resolveSize(rawFontSize), fontFamily: font, color: itemColor, textAlign, fontWeight, fontStyle };
+        const item: DrawItem = { type: 'paragraph', id: itemId, text, x: posX, y: posY, width: this.resolveWidth(width), lineHeight, fontSize: this.resolveSize(rawFontSize), fontFamily: font, color: itemColor, textAlign, fontWeight, fontStyle, textDecoration, underline };
         if (this.isRecording) {
             this.drawQueue.push(item);
             return itemId;
@@ -1190,10 +1194,10 @@ export class Board {
         for (const cmd of commands) {
             switch (cmd.action) {
                 case "text":
-                    this.writeText({ text: cmd.text, x: cmd.x, y: cmd.y, fontSize: cmd.fontSize, fontFamily: cmd.fontFamily, color: cmd.color, textAlign: cmd.textAlign, fontWeight: cmd.fontWeight, fontStyle: cmd.fontStyle });
+                    this.writeText({ text: cmd.text, x: cmd.x, y: cmd.y, fontSize: cmd.fontSize, fontFamily: cmd.fontFamily, color: cmd.color, textAlign: cmd.textAlign, fontWeight: cmd.fontWeight, fontStyle: cmd.fontStyle, textDecoration: cmd.textDecoration, underline: cmd.underline });
                     break;
                 case "paragraph":
-                    this.writeParagraph({ text: cmd.text, x: cmd.x, y: cmd.y, width: cmd.width, lineHeight: cmd.lineHeight, fontSize: cmd.fontSize, fontFamily: cmd.fontFamily, color: cmd.color, textAlign: cmd.textAlign, fontWeight: cmd.fontWeight, fontStyle: cmd.fontStyle });
+                    this.writeParagraph({ text: cmd.text, x: cmd.x, y: cmd.y, width: cmd.width, lineHeight: cmd.lineHeight, fontSize: cmd.fontSize, fontFamily: cmd.fontFamily, color: cmd.color, textAlign: cmd.textAlign, fontWeight: cmd.fontWeight, fontStyle: cmd.fontStyle, textDecoration: cmd.textDecoration, underline: cmd.underline });
                     break;
                 case "line":
                     this.drawLine({ x1: cmd.x1, y1: cmd.y1, x2: cmd.x2, y2: cmd.y2, color: cmd.color, lineDash: cmd.lineDash });

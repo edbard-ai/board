@@ -14,8 +14,8 @@ export interface SemanticPoint {
 
 export type DrawItem =
     | { type: 'line'; id: string; x1: number; y1: number; x2: number; y2: number; color: string; lineWidth: number; lineDash?: number[] }
-    | { type: 'text'; id: string; text: string; x: number; y: number; fontSize: number; fontFamily: string; color: string; textAlign?: CanvasTextAlign; textBaseline?: CanvasTextBaseline; fontWeight?: string; fontStyle?: string; maxWidth?: number }
-    | { type: 'paragraph'; id: string; text: string; x: number; y: number; width: number; lineHeight: number; fontSize: number; fontFamily: string; color: string; textAlign?: CanvasTextAlign; fontWeight?: string; fontStyle?: string }
+    | { type: 'text'; id: string; text: string; x: number; y: number; fontSize: number; fontFamily: string; color: string; textAlign?: CanvasTextAlign; textBaseline?: CanvasTextBaseline; fontWeight?: string; fontStyle?: string; textDecoration?: string; underline?: boolean; maxWidth?: number }
+    | { type: 'paragraph'; id: string; text: string; x: number; y: number; width: number; lineHeight: number; fontSize: number; fontFamily: string; color: string; textAlign?: CanvasTextAlign; fontWeight?: string; fontStyle?: string; textDecoration?: string; underline?: boolean }
     | { type: 'fillRect'; id: string; x: number; y: number; width: number; height: number; radius: number; fillColor: string }
     | { type: 'fillPolygon'; id: string; points: Point[]; fillColor: string }
     | { type: 'drawRect'; id: string; x: number; y: number; width: number; height: number; color?: string; fillColor?: string; radius?: number; lineWidth?: number }
@@ -57,6 +57,8 @@ export interface WriteTextOptions {
     textBaseline?: CanvasTextBaseline;
     fontWeight?: string;
     fontStyle?: string;
+    textDecoration?: string;
+    underline?: boolean;
     maxWidth?: number;
 }
 
@@ -73,6 +75,8 @@ export interface WriteParagraphOptions {
     textAlign?: CanvasTextAlign;
     fontWeight?: string;
     fontStyle?: string;
+    textDecoration?: string;
+    underline?: boolean;
 }
 
 export interface FillRectOptions {
@@ -284,8 +288,8 @@ export interface DrawBoxOptions {
 }
 
 export type BoardScriptCommand =
-    | { action: "text"; text: string; x: XCoord; y?: YCoord; fontSize?: SizeCoord; fontFamily?: string; color?: string; textAlign?: CanvasTextAlign; fontWeight?: string; fontStyle?: string }
-    | { action: "paragraph"; text: string; x: XCoord; y?: YCoord; width: SizeCoord; lineHeight?: number; fontSize?: SizeCoord; fontFamily?: string; color?: string; textAlign?: CanvasTextAlign; fontWeight?: string; fontStyle?: string }
+    | { action: "text"; text: string; x: XCoord; y?: YCoord; fontSize?: SizeCoord; fontFamily?: string; color?: string; textAlign?: CanvasTextAlign; fontWeight?: string; fontStyle?: string; textDecoration?: string; underline?: boolean }
+    | { action: "paragraph"; text: string; x: XCoord; y?: YCoord; width: SizeCoord; lineHeight?: number; fontSize?: SizeCoord; fontFamily?: string; color?: string; textAlign?: CanvasTextAlign; fontWeight?: string; fontStyle?: string; textDecoration?: string; underline?: boolean }
     | { action: "line"; x1: XCoord; y1: YCoord; x2: XCoord; y2: YCoord; color?: string; lineDash?: number[] }
     | { action: "rect"; x: XCoord; y?: YCoord; width: SizeCoord; height: SizeCoord; color?: string; fillColor?: string; radius?: SizeCoord }
     | { action: "fillRect"; x: XCoord; y?: YCoord; width: SizeCoord; height: SizeCoord; fillColor: string; radius?: SizeCoord }

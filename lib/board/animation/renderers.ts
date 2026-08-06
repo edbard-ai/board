@@ -44,6 +44,11 @@ export function renderText(item: Extract<DrawItem, { type: 'text' }>): HTMLEleme
     div.style.fontSize = `${item.fontSize}px`;
     if (item.fontWeight) div.style.fontWeight = item.fontWeight;
     if (item.fontStyle) div.style.fontStyle = item.fontStyle;
+    if (item.textDecoration) {
+        div.style.textDecoration = item.textDecoration;
+    } else if (item.underline) {
+        div.style.textDecoration = 'underline';
+    }
     
     if (item.textAlign === 'center') {
         div.style.transform = 'translate(-50%, 0)';
@@ -80,6 +85,11 @@ export function renderParagraph(item: Extract<DrawItem, { type: 'paragraph' }>):
     div.style.lineHeight = item.lineHeight.toString();
     if (item.fontWeight) div.style.fontWeight = item.fontWeight;
     if (item.fontStyle) div.style.fontStyle = item.fontStyle;
+    if (item.textDecoration) {
+        div.style.textDecoration = item.textDecoration;
+    } else if (item.underline) {
+        div.style.textDecoration = 'underline';
+    }
     if (item.textAlign) div.style.textAlign = item.textAlign === 'center' ? 'center' : (item.textAlign === 'right' ? 'right' : 'left');
     
     div.style.whiteSpace = 'pre-wrap';
