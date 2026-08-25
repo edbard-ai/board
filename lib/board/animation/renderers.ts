@@ -307,7 +307,7 @@ export function renderCodeBlock(item: Extract<DrawItem, { type: 'codeBlock' }>):
     const headerHeight = item.language ? fontSize * 2.2 : fontSize * 1.2;
     const paddingX = Math.max(10, fontSize * 0.8);
     const lineHeight = fontSize * 1.5;
-    const h = item.height > 0 ? item.height : lines.length * lineHeight + headerHeight + fontSize * 0.4;
+    const h = item.height && item.height > 0 ? item.height : lines.length * lineHeight + headerHeight + fontSize * 0.4;
     
     div.style.height = `${h}px`;
     div.style.backgroundColor = '#1e1e1e';

@@ -1,6 +1,6 @@
-# Canvas Board Library
+# HTML5 / DOM SVG Board Library (`edbard-board`)
 
-An animated, high-performance HTML5 Canvas whiteboard and presentation engine for rendering shapes, text, code blocks, tables, math functions, and step-by-step algorithmic visualizer animations.
+A high-performance interactive 2D whiteboard, rendering engine, and animation library for building presentation slides, math diagrams, code snippets, structured tables, and animated visualizer sequences.
 
 ---
 
@@ -9,17 +9,18 @@ An animated, high-performance HTML5 Canvas whiteboard and presentation engine fo
 - [Overview](#overview)
 - [Module Exports](#module-exports)
 - [Quick Start](#quick-start)
-- [Core Concepts](#core-concepts)
-  - [High-DPI / Retina Scaling](#high-dpi--retina-scaling)
-  - [Semantic Coordinates](#semantic-coordinates)
+- [Core Architecture & Concepts](#core-architecture--concepts)
+  - [DOM-Based SVG & CSS Pipeline](#dom-based-svg--css-pipeline)
+  - [Semantic & Responsive Percentage Coordinates](#semantic--responsive-percentage-coordinates)
   - [Trigger & Animation Queue](#trigger--animation-queue)
+- [Declarative JSON Script API (`processScript`)](#declarative-json-script-api-processscript)
 - [Board Class API](#board-class-api)
-  - [Constructor & Initialization](#constructor--initialization)
+  - [Constructor & Options](#constructor--options)
   - [State & Canvas Methods](#state--canvas-methods)
   - [Trigger & Queue Control](#trigger--queue-control)
   - [Drawing Primitives & Shapes](#drawing-primitives--shapes)
-  - [Text & Formatting](#text--formatting)
-  - [Advanced Visual Components](#advanced-visual-components)
+  - [Text, Paragraphs & Math (KaTeX)](#text-paragraphs--math-katex)
+  - [Advanced Visual Components & Box Layout](#advanced-visual-components--box-layout)
 - [Shapes & Math Utilities](#shapes--math-utilities)
 - [Type Definitions](#type-definitions)
 - [Example Usage](#example-usage)
@@ -28,32 +29,27 @@ An animated, high-performance HTML5 Canvas whiteboard and presentation engine fo
 
 ## Overview
 
-The `Board` library provides a rich API on top of the standard HTML5 2D Canvas context (`CanvasRenderingContext2D`). It allows synchronous direct drawing or recorded, step-by-step animated queues with smooth transitions, Catmull-Rom spline curves, semantic layout alignment, dark-mode tables, syntax-highlighted code blocks, and dynamic element transformations.
+The `edbard-board` library provides a feature-rich, high-performance rendering engine that supports both programmatic imperative drawing and JSON-based script playback (`processScript`). It supports smooth keyframe transitions, multi-point spline curves, semantic responsive layouts, formatted dark-mode code blocks, KaTeX math formula rendering, and slide transitions.
 
-Entry file: [`lib/board/index.ts`](file:///home/adhil/projects/study-companion/board/lib/board/index.ts)  
-Main class file: [`lib/board/board.ts`](file:///home/adhil/projects/study-companion/board/lib/board/board.ts)
+- Entry file: [`lib/board/index.ts`](file:///home/adhil/projects/study-companion/board/lib/board/index.ts)  
+- Main class file: [`lib/board/board.ts`](file:///home/adhil/projects/study-companion/board/lib/board/board.ts)
 
 ---
 
 ## Module Exports
 
-Import everything directly from `lib/board`:
+Import directly from `lib/board`:
 
 ```typescript
 import { Board, runBinarySearchExample } from '@/lib/board';
-import type { BoardOptions, SemanticPoint, DrawItem } from '@/lib/board';
+import type { BoardOptions, SemanticPoint, DrawItem, BoardScriptCommand } from '@/lib/board';
 ```
-
-`lib/board/index.ts` re-exports:
-- [`lib/board/board.ts`](file:///home/adhil/projects/study-companion/board/lib/board/board.ts) - The `Board` class and type re-exports.
-- [`lib/board/types.ts`](file:///home/adhil/projects/study-companion/board/lib/board/types.ts) - Interfaces, options objects, and discriminated union `DrawItem`.
-- [`lib/board/shapes.ts`](file:///home/adhil/projects/study-companion/board/lib/board/shapes.ts) - Geometry calculation utilities (splines, polygons, arrows, arcs, polynomials).
-- [`lib/board/animation`](file:///home/adhil/projects/study-companion/board/lib/board/animation/index.ts) - Renderers, runners, and transitions.
-- [`lib/board/examples`](file:///home/adhil/projects/study-companion/board/lib/board/examples/index.ts) - Pre-built visualization sequences (e.g. binary search).
 
 ---
 
 ## Quick Start
+
+### 1. Imperative Animation Queue
 
 ```typescript
 import { Board } from '@/lib/board';
@@ -67,17 +63,18 @@ const board = new Board('canvas-container-id', 800, 600, {
 board.beginTrigger();
 
 board.writeText({
-    text: 'Hello World',
+    text: 'Whiteboard Presentation',
     x: 'center',
     y: 50,
     fontSize: 28,
-    color: '#4dd0e1'
+    color: '#4dd0e1',
+    underline: true
 });
 
 board.drawRect({
     x: 'center',
     y: 120,
-    width: 200,
+    width: '60%',
     height: 100,
     color: '#ffffff',
     fillColor: '#161b22',
@@ -87,238 +84,150 @@ board.drawRect({
 board.completeTrigger();
 ```
 
+### 2. Declarative JSON Script Execution
+
+```typescript
+board.processScript([
+    { action: "slideOutLeft", duration: 500 },
+    { action: "text", text: "Interactive STEM Lesson", x: "center", y: "10%", fontSize: 32, color: "#4dd0e1" },
+    { action: "math", formula: "E = mc^2", x: "center", y: "30%", fontSize: 36, color: "#f43f5e" },
+    { action: "wait", duration: 1000 }
+]);
+```
+
 ---
 
-## Core Concepts
+## Core Architecture & Concepts
 
-### High-DPI / Retina Scaling
-The `Board` automatically detects `window.devicePixelRatio` and scales the canvas internal buffer while maintaining CSS pixel dimensions, ensuring crisp text and sharp lines on modern high-resolution displays.
+### DOM-Based SVG & CSS Pipeline
+The rendering pipeline converts whiteboard items into crisp HTML5 SVG elements and styled CSS nodes. This allows sub-pixel precision, crisp text rendering on Retina/High-DPI screens, and native text selection.
 
-### Semantic Coordinates
-Coordinates can be specified as absolute numbers or semantic horizontal (`XCoord`) and vertical (`YCoord`) string keywords:
-- `XCoord`: `number | 'center' | 'left' | 'right'`
-- `YCoord`: `number | 'center' | 'top' | 'bottom'`
-- `SemanticPoint`: `{ x: XCoord, y: YCoord }`
+### Semantic & Responsive Percentage Coordinates
+Coordinates and dimensions can be provided as numbers (pixels) or string values for responsive scaling across different container sizes:
+- **X Coordinates (`XCoord`)**: `number | 'center' | 'left' | 'right' | "${number}%"`
+- **Y Coordinates (`YCoord`)**: `number | 'center' | 'top' | 'bottom' | "${number}%"`
+- **Dimensions (`SizeCoord`)**: `number | "${number}%"`
 
-You can pass `{ x: 'center', y: 'center' }` or `board.center()` anywhere a point or coordinate is expected.
+For example, `x: "50%"`, `y: "20%"`, `width: "80%"` scale responsively regardless of aspect ratio.
 
 ### Trigger & Animation Queue
-Drawing methods operate in two modes:
-1. **Immediate Mode**: Calling draw methods outside a trigger block renders directly to the canvas context instantly.
-2. **Recorded Queue Mode**: Calling `board.beginTrigger()` starts queueing drawing actions, waits (`wait()`), moves (`move()`), color changes (`changeColor()`), and deletes (`delete()`). Calling `board.completeTrigger()` executes the queue as a step-by-step animation.
+1. **Immediate Mode**: Calling draw methods outside a trigger block renders items immediately.
+2. **Recorded Queue Mode**: `board.beginTrigger()` records all subsequent draw actions, movements (`move()`), pauses (`wait()`), color updates (`changeColor()`), and slide transitions (`slideOutLeft()`). `board.completeTrigger()` then initiates continuous step-by-step queue playback.
+
+---
+
+## Declarative JSON Script API (`processScript`)
+
+The `processScript(commands: BoardScriptCommand[])` method compiles and animates an array of JSON command objects.
+
+### Available JSON Action Commands
+
+| Action Command | Description & Key Parameters |
+| :--- | :--- |
+| `text` | Single line text. `{ action: "text", text, x, y, fontSize, color, textAlign, fontWeight, fontStyle, textDecoration, underline }` |
+| `paragraph` | Auto-wrapping multi-line text. `{ action: "paragraph", text, x, y, width, lineHeight, fontSize, color }` |
+| `line` | Line segment. `{ action: "line", x1, y1, x2, y2, color, lineDash }` |
+| `rect` | Outlined/filled rounded rectangle. `{ action: "rect", x, y, width, height, color, fillColor, radius }` |
+| `fillRect` | Filled rounded rectangle. `{ action: "fillRect", x, y, width, height, fillColor, radius }` |
+| `circle` | Circle or circular arc. `{ action: "circle", cx, cy, radius, color, fillColor }` |
+| `ellipse` | Rotated ellipse. `{ action: "ellipse", cx, cy, radiusX, radiusY, rotation, color, fillColor }` |
+| `arrow` | Directed arrow line. `{ action: "arrow", x1, y1, x2, y2, color, headSize }` |
+| `image` | Image element. `{ action: "image", src, x, y, width, height, opacity }` |
+| `codeBlock` | Syntax highlighted code block. `{ action: "codeBlock", code, language, x, y, width, height, fontSize }` |
+| `table` | Data table with styled headers. `{ action: "table", data, x, y, cellWidth, cellHeight, headerBgColor, textColor }` |
+| `math` | KaTeX formatted math formula. `{ action: "math", formula, x, y, fontSize, color, displayMode }` |
+| `polygon` | Multi-vertex closed polygon. `{ action: "polygon", points, color, fillColor }` |
+| `diamond` | Diamond shape. `{ action: "diamond", cx, cy, width, height, color, fillColor }` |
+| `gridAxes` | Coordinate background grid. `{ action: "gridAxes", x, y, width, height, step, color }` |
+| `gradientRect` | Linear gradient rectangle. `{ action: "gradientRect", x, y, width, height, colors, direction }` |
+| `pointer` | Indicator pointer dot. `{ action: "pointer", x, y, color, size }` |
+| `highlight` | Semi-transparent highlight box. `{ action: "highlight", x, y, width, height, color }` |
+| `box` | Flex layout container box. `{ action: "box", x, y, width, height, padding, gap, direction, items }` |
+| `wait` | Pause queue execution. `{ action: "wait", duration: 1000 }` |
+| `clear` | Instant clear. `{ action: "clear" }` |
+| `slideOutLeft` | Slide out previous content and clear. `{ action: "slideOutLeft", duration: 500 }` |
 
 ---
 
 ## Board Class API
 
-### Constructor & Initialization
+### Constructor & Options
 
 ```typescript
 new Board(id: string, width: number, height: number, options?: BoardOptions)
 ```
 
-- `id`: Container HTML element ID.
-- `width`: Logical width in CSS pixels.
-- `height`: Logical height in CSS pixels.
-- `options`: Optional `BoardOptions` configuration object:
-  - `speed` (default `15`): Animation queue execution speed multiplier.
-  - `background`: CSS background color string for the container.
-  - `hiDpi` (default `true`): Enable device pixel ratio scaling.
-  - `fontFamily` (default `"Playpen Sans", sans-serif`): Default font family.
-
-### State & Canvas Methods
-
-- `setColor(color: string)`: Sets default stroke/text color (`board.color`).
-- `setLineWidth(width: number)`: Sets default stroke width (`board.lineWidth`).
-- `setSpeed(speed: number)`: Updates animation playback speed.
-- `setOpacity(alpha: number)`: Sets canvas `globalAlpha` (0 to 1).
-- `setLineDash(segments: number[])`: Sets dashed line pattern (e.g. `[5, 5]`).
-- `save()`: Pushes current state (color, line width, opacity, line dash) onto the state stack and saves standard canvas context.
-- `restore()`: Pops state stack and restores standard canvas context.
-- `setBackground(color: string)`: Sets container element background color.
-- `clear()`: Clears logical canvas area.
-- `center()`: Returns `{ x: 'center', y: 'center' }`.
+Options:
+- `speed` (default `15`): Animation execution speed multiplier.
+- `background`: CSS background color string.
+- `hiDpi` (default `true`): Enable High-DPI screen pixel ratio scaling.
+- `fontFamily` (default `"Playpen Sans", sans-serif`): Default text font family.
+- `fitMode` (`'contain' | 'cover' | 'fill'`): Responsive container fitting mode.
+- `responsive` (default `true`): Automatically observe and adjust to container resize events.
 
 ### Trigger & Queue Control
 
-- `beginTrigger()`: Resets item ID counter, clears queue, enables recording mode.
-- `completeTrigger()`: Disables recording mode and initiates queue playback.
-- `wait(durationMs: number)`: Adds a pause delay into the animation queue.
-- `delete(id: string, durationMs?: number)`: Animates removal of an item by ID (aliases: `deleteComponent`, `remove`).
-- `move(id: string, dx: number, dy: number, durationMs?: number)`: Animates delta movement of an item.
-- `moveTo(id: string, x: XCoord, y: YCoord, durationMs?: number)`: Animates movement of an item to a target position.
-- `changeColor(id: string, color: string, durationMs?: number)`: Animates color interpolation of an item.
-- `slideOutLeft(durationMs?: number)`: Animates canvas slide-out transition and clears content (aliases: `clearWithSlideLeft`, `slideLeft`).
+- `beginTrigger()`: Resets queue and starts recording mode.
+- `completeTrigger()`: Finishes recording and starts step-by-step playback.
+- `wait(durationMs: number)`: Inserts a delay into the animation sequence.
+- `delete(id: string, durationMs?: number)`: Animates removal of an element by ID.
+- `move(id: string, dx: number, dy: number, durationMs?: number)`: Animates relative movement.
+- `moveTo(id: string, x: XCoord, y: YCoord, durationMs?: number)`: Animates movement to absolute target position.
+- `changeColor(id: string, color: string, durationMs?: number)`: Animates color transition.
+- `slideOutLeft(durationMs?: number)`: Animates a left slide-out transition and clears board content.
 
 ### Drawing Primitives & Shapes
 
-All drawing methods return a unique item ID (`string`) for tracking, manipulation, and keyframe animations.
+- `drawLine(options: DrawLineOptions): string`
+- `drawRect(options: DrawRectOptions): string`
+- `fillRect(options: FillRectOptions): string`
+- `drawCircle(options: DrawCircleOptions): string`
+- `drawEllipse(options: DrawEllipseOptions): string`
+- `drawArrow(options: DrawArrowOptions): string`
+- `drawPolygon(options: DrawPolygonOptions): string`
+- `fillPolygon(options: FillPolygonOptions): string`
+- `drawRegularPolygon(options: DrawRegularPolygonOptions): string`
+- `drawDiamond(options: DrawDiamondOptions): string`
+- `drawPolynomial(options: DrawPolynomialOptions): string`
 
-- `drawLine(options: DrawLineOptions): string`  
-  Draws a line segment between `(x1, y1)` and `(x2, y2)`.
+### Text, Paragraphs & Math (KaTeX)
 
-- `drawRect(options: DrawRectOptions): string`  
-  Draws a stroke/fill rounded rectangle.
-
-- `fillRect(options: FillRectOptions): string`  
-  Draws a filled rounded rectangle.
-
-- `drawGradientRect(options: DrawGradientRectOptions): string`  
-  Draws a linear gradient rectangle (`'horizontal' | 'vertical' | 'diagonal'`).
-
-- `drawCircle(options: DrawCircleOptions): string`  
-  Draws a circle or circular arc centered at `(cx, cy)`.
-
-- `drawEllipse(options: DrawEllipseOptions): string`  
-  Draws a rotated ellipse centered at `(cx, cy)`.
-
-- `drawArc(options: DrawArcOptions): string`  
-  Draws a arc given center, radius, start angle, and end angle.
-
-- `drawPolygon(options: DrawPolygonOptions): string`  
-  Draws a closed multi-vertex polygon.
-
-- `fillPolygon(options: FillPolygonOptions): string`  
-  Fills a closed multi-vertex polygon.
-
-- `drawRegularPolygon(options: DrawRegularPolygonOptions): string`  
-  Draws an $N$-sided regular polygon.
-
-- `drawDiamond(options: DrawDiamondOptions): string`  
-  Draws a diamond shape given center, width, and height.
-
-- `drawPolynomial(options: DrawPolynomialOptions): string`  
-  Plots a polynomial curve given an array of coefficients $[c_0, c_1, c_2, \dots]$ where $y = \sum c_i x^i$.
-
-- `drawArrow(options: DrawArrowOptions): string`  
-  Draws a line with an arrowhead pointing at `(x2, y2)`.
-
-- `drawPath(points: Point[], color: string, smooth?: boolean): string`  
-  Draws a continuous multi-point path with optional Catmull-Rom spline smoothing.
-
-- `drawImage(options: DrawImageOptions): string`  
-  Renders an HTML Image element or image URL source.
-
-### Text & Formatting
-
-- `writeText(options: WriteTextOptions): string` (alias: `drawText`)  
-  Writes single-line text with custom font size, weight, baseline, and alignment.
-
+- `writeText(options: WriteTextOptions): string`  
+  Supports `textDecoration` (e.g. `'underline'`) and `underline: true`.
 - `writeParagraph(options: WriteParagraphOptions): string`  
-  Renders auto-wrapping multi-line paragraph text constrained to a bounding width.
+  Renders auto-wrapping paragraph text bounded by a specified width.
+- `writeMath(options: WriteMathOptions): string`  
+  Renders LaTeX mathematical equations formatted with KaTeX (`formula: "\\int_0^\\infty e^{-x^2} dx"`).
 
-### Advanced Visual Components
-
-- `drawPointer(x: XCoord, y: YCoord, color?: string, size?: number, id?: string): string`  
-  Draws an animated indicator pointer dot.
-
-- `highlightRect(x: XCoord, y: YCoord, width: number, height: number, color?: string, id?: string): string`  
-  Overlays a semi-transparent rectangle highlighter.
-
-- `drawGridAxes(options: DrawGridAxesOptions): string`  
-  Draws a background coordinate grid with prominent center axes.
+### Advanced Visual Components & Box Layout
 
 - `drawCodeBlock(options: DrawCodeBlockOptions): string`  
-  Renders a dark syntax-style formatted multi-line code block container.
-
-- `drawTable(options: DrawTableOptions): string` (aliases: `createTable`, `writeTable`)  
-  Draws a grid table component complete with styled headers, alternating row colors, and cell text alignment.
-
----
-
-## Shapes & Math Utilities
-
-Exported from [`lib/board/shapes.ts`](file:///home/adhil/projects/study-companion/board/lib/board/shapes.ts):
-
-- `getCatmullRomPoint(p0, p1, p2, p3, t)`: Interpolates Catmull-Rom curve point at parameter $t$.
-- `getSmoothSplinePoints(points, stepsPerSegment)`: Converts discrete points into smooth spline points.
-- `getRectPathPoints(posX, posY, width, height, radius)`: Computes rounded rectangle path vertices.
-- `getDiamondPolygonPoints(centerPos, width, height)`: Computes diamond vertices.
-- `getRegularPolygonPoints(centerPos, sides, radius, rotation)`: Computes regular polygon vertices.
-- `getPolynomialPoints(coefficients, rangeX, step, scaleX, scaleY, origin)`: Computes canvas coordinates for polynomial plotting.
-- `getArrowHeadLines(x1, y1, x2, y2, headSize)`: Computes arrowhead line coordinates.
-- `getArcPoints(...)`: Computes points along a circular arc.
-- `getCirclePoints(...)`: Computes points along a circle.
-- `getEllipsePoints(...)`: Computes points along an ellipse.
+  Renders code blocks with background paneling and monospace typography.
+- `drawTable(options: DrawTableOptions): string`  
+  Renders grid tables with custom header and row styling.
+- `drawBox(options: DrawBoxOptions): string`  
+  Flex container box that stacks nested items horizontally or vertically with custom padding and gap alignment.
 
 ---
 
 ## Type Definitions
 
-Located in [`lib/board/types.ts`](file:///home/adhil/projects/study-companion/board/lib/board/types.ts):
-
-```typescript
-export interface Point {
-    x: number;
-    y: number;
-}
-
-export type XCoord = number | 'center' | 'left' | 'right';
-export type YCoord = number | 'center' | 'top' | 'bottom';
-
-export interface SemanticPoint {
-    x: XCoord;
-    y: YCoord;
-}
-
-export interface BoardOptions {
-    width?: number;
-    height?: number;
-    speed?: number;
-    background?: string;
-    hiDpi?: boolean;
-    fontFamily?: string;
-}
-```
+Located in [`lib/board/types.ts`](file:///home/adhil/projects/study-companion/board/lib/board/types.ts).
 
 ---
 
 ## Example Usage
 
-An algorithm visualizer example in [`lib/board/examples/binarySearch.ts`](file:///home/adhil/projects/study-companion/board/lib/board/examples/binarySearch.ts):
-
 ```typescript
 import { Board } from '@/lib/board';
 
-export function runBinarySearchExample(board: Board) {
-    board.beginTrigger();
+const board = new Board('board-root', 1920, 1080);
 
-    board.writeText({
-        text: 'Binary Search Visualizer',
-        x: 'center',
-        y: 40,
-        fontSize: 28,
-        color: '#4dd0e1',
-        fontWeight: '700',
-        textAlign: 'center'
-    });
-
-    board.wait(1000);
-
-    const startX = 125;
-    const startY = 190;
-    board.drawRect({ x: startX, y: startY, width: 600, height: 55, color: '#fff', radius: 6 });
-
-    const elements = [2, 5, 8, 12, 16, 23, 38, 56, 72, 91];
-    elements.forEach((el, i) => {
-        if (i > 0) {
-            board.drawLine({ x1: startX + i * 60, y1: startY, x2: startX + i * 60, y2: startY + 55, color: '#fff' });
-        }
-        board.writeText({
-            text: el.toString(),
-            x: startX + i * 60 + 30,
-            y: startY + 36,
-            fontSize: 20,
-            color: '#fff',
-            textAlign: 'center'
-        });
-    });
-
-    const highlightId = board.highlightRect(startX + 4 * 60, startY, 60, 55, 'rgba(255, 138, 128, 0.4)');
-    board.wait(1000);
-    board.move(highlightId, 60, 0, 600);
-    board.changeColor(highlightId, 'rgba(77, 208, 225, 0.4)', 600);
-
-    board.completeTrigger();
-}
+board.processScript([
+    { action: "slideOutLeft", duration: 400 },
+    { action: "text", text: "Pythagorean Theorem", x: "center", y: "15%", fontSize: 32, color: "#4dd0e1", underline: true },
+    { action: "math", formula: "a^2 + b^2 = c^2", x: "center", y: "35%", fontSize: 40, color: "#ffffff" },
+    { action: "wait", duration: 800 },
+    { action: "paragraph", text: "In any right-angled triangle, the area of the square whose side is the hypotenuse is equal to the sum of the areas of the squares on the other two sides.", x: "15%", y: "55%", width: "70%", fontSize: 20, color: "#94a3b8" }
+]);
 ```

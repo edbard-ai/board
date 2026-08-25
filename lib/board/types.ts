@@ -26,7 +26,7 @@ export type DrawItem =
     | { type: 'gradientRect'; id: string; x: number; y: number; width: number; height: number; colors: string[]; direction?: 'horizontal' | 'vertical' | 'diagonal' }
     | { type: 'pointer'; id: string; x: number; y: number; color: string; size: number }
     | { type: 'highlightRect'; id: string; x: number; y: number; width: number; height: number; color: string }
-    | { type: 'codeBlock'; id: string; code: string; language?: string; x: number; y: number; width: number; height: number; fontSize?: number }
+    | { type: 'codeBlock'; id: string; code: string; language?: string; x: number; y: number; width: number; height?: number; fontSize?: number }
     | { type: 'table'; id: string; data: string[][]; x: number; y: number; cellWidth: number; cellHeight: number; headerBgColor: string; headerTextColor: string; rowBgColor: string; altRowBgColor: string; textColor: string; borderColor: string; fontSize: number; fontFamily: string }
     | { type: 'math'; id: string; formula: string; x: number; y: number; fontSize: number; fontFamily: string; color: string; displayMode: boolean }
     | { type: 'slideOutLeft'; duration: number }
@@ -298,7 +298,7 @@ export type BoardScriptCommand =
     | { action: "arrow"; x1: XCoord; y1: YCoord; x2: XCoord; y2: YCoord; color?: string; headSize?: number }
     | { action: "image"; src: string; x: XCoord; y?: YCoord; width?: SizeCoord; height?: SizeCoord; opacity?: number }
     | { action: "codeBlock"; code: string; language?: string; x: XCoord; y?: YCoord; width: SizeCoord; height?: SizeCoord; fontSize?: SizeCoord }
-    | { action: "table"; data: string[][]; x: XCoord; y?: YCoord; cellWidth?: number; cellHeight?: number; headerBgColor?: string; headerTextColor?: string; rowBgColor?: string; altRowBgColor?: string; textColor?: string; borderColor?: string; fontSize?: SizeCoord; fontFamily?: string }
+    | { action: "table"; data: string[][]; x: XCoord; y?: YCoord; cellWidth?: SizeCoord; cellHeight?: SizeCoord; headerBgColor?: string; headerTextColor?: string; rowBgColor?: string; altRowBgColor?: string; textColor?: string; borderColor?: string; fontSize?: SizeCoord; fontFamily?: string }
     | { action: "math"; formula: string; x: XCoord; y?: YCoord; fontSize?: SizeCoord; color?: string; fontFamily?: string; displayMode?: boolean }
     | { action: "polygon"; points: SemanticPoint[]; color?: string; fillColor?: string }
     | { action: "diamond"; cx: XCoord; cy?: YCoord; width: SizeCoord; height: SizeCoord; color?: string; fillColor?: string }
