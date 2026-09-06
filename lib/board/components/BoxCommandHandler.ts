@@ -1,19 +1,9 @@
 import { CommandHandler, SizeEstimate } from '../core/CommandRegistry';
-import { BoardScriptCommand, SizeCoord } from '../types';
+import { BoardScriptCommand, SizeCoord, XCoord, YCoord } from '../types';
 
 export const BoxCommandHandler: CommandHandler<Extract<BoardScriptCommand, { action: 'box' }>> = {
     action: 'box',
     estimateSize: (cmd, ctx) => {
-        const normalizedItems: BoardScriptCommand[] = (cmd.items || []).map(item => {
-            if (typeof item === 'string') {
-                return { action: 'paragraph', text: item, x: 0, y: 0, width: (cmd.width === 'auto' || cmd.width === undefined) ? 600 : '100%', fontSize: 20, color: cmd.color || '#ffffff' } as BoardScriptCommand;
-            }
-            return item as BoardScriptCommand;
-        });
-        const items = normalizedItems;
-        const gap = cmd.gap ?? 12;
-        const isRow = cmd.direction === 'horizontal' || cmd.direction === 'row' || !cmd.direction;
-
         let pTop = 16, pRight = 16, pBottom = 16, pLeft = 16;
         if (typeof cmd.padding === 'number') {
             pTop = pRight = pBottom = pLeft = cmd.padding;
@@ -24,6 +14,36 @@ export const BoxCommandHandler: CommandHandler<Extract<BoardScriptCommand, { act
             pLeft = cmd.padding.left ?? 16;
         }
 
+        const isRow = cmd.direction === 'horizontal' || cmd.direction === 'row';
+        const alignH = cmd.alignHorizontal ?? (isRow ? 'center' : 'left');
+
+        const explicitBoxW = (cmd.width !== undefined && cmd.width !== 'auto')
+            ? ctx.resolver.resolveWidth(cmd.width as SizeCoord)
+            : undefined;
+
+        const targetContentW = explicitBoxW !== undefined
+            ? Math.max(0, explicitBoxW - pLeft - pRight)
+            : 600;
+
+        const normalizedItems: BoardScriptCommand[] = (cmd.items || []).map(item => {
+            if (typeof item === 'string') {
+                return {
+                    action: 'paragraph',
+                    text: item,
+                    x: 0,
+                    y: 0,
+                    width: isRow ? 'auto' : targetContentW,
+                    fontSize: 22,
+                    lineHeight: 1.5,
+                    color: cmd.color || '#e2e8f0',
+                    textAlign: alignH === 'center' ? 'center' : (alignH === 'right' ? 'right' : 'left')
+                } as BoardScriptCommand;
+            }
+            return item as BoardScriptCommand;
+        });
+
+        const items = normalizedItems;
+        const gap = cmd.gap ?? 12;
         const itemSizes = items.map((childCmd) => ctx.estimateCommandSize(childCmd));
 
         let contentWidth = 0;
@@ -45,7 +65,7 @@ export const BoxCommandHandler: CommandHandler<Extract<BoardScriptCommand, { act
                 maxW = Math.max(maxW, sz.w);
                 totalH += sz.h + (idx > 0 ? gap : 0);
             });
-            contentWidth = maxW;
+            contentWidth = explicitBoxW !== undefined ? targetContentW : maxW;
             contentHeight = totalH;
         }
 
@@ -71,17 +91,6 @@ export const BoxCommandHandler: CommandHandler<Extract<BoardScriptCommand, { act
 
     execute: (cmd, ctx) => {
         const itemId = ctx.generateId();
-        const normalizedItems: BoardScriptCommand[] = (cmd.items || []).map(item => {
-            if (typeof item === 'string') {
-                return { action: 'paragraph', text: item, x: 0, y: 0, width: (cmd.width === 'auto' || cmd.width === undefined) ? 600 : '100%', fontSize: 24, color: cmd.color || '#ffffff' } as BoardScriptCommand;
-            }
-            return item as BoardScriptCommand;
-        });
-        const items = normalizedItems;
-        const gap = cmd.gap ?? 12;
-        const isRow = cmd.direction === 'horizontal' || cmd.direction === 'row' || !cmd.direction;
-        const alignH = cmd.alignHorizontal ?? 'center';
-        const alignV = cmd.alignVertical ?? 'center';
 
         let pTop = 16, pRight = 16, pBottom = 16, pLeft = 16;
         if (typeof cmd.padding === 'number') {
@@ -93,6 +102,37 @@ export const BoxCommandHandler: CommandHandler<Extract<BoardScriptCommand, { act
             pLeft = cmd.padding.left ?? 16;
         }
 
+        const isRow = cmd.direction === 'horizontal' || cmd.direction === 'row';
+        const alignH = cmd.alignHorizontal ?? (isRow ? 'center' : 'left');
+        const alignV = cmd.alignVertical ?? 'center';
+
+        const explicitBoxW = (cmd.width !== undefined && cmd.width !== 'auto')
+            ? ctx.resolver.resolveWidth(cmd.width as SizeCoord)
+            : undefined;
+
+        const targetContentW = explicitBoxW !== undefined
+            ? Math.max(0, explicitBoxW - pLeft - pRight)
+            : 600;
+
+        const normalizedItems: BoardScriptCommand[] = (cmd.items || []).map(item => {
+            if (typeof item === 'string') {
+                return {
+                    action: 'paragraph',
+                    text: item,
+                    x: 0,
+                    y: 0,
+                    width: isRow ? 'auto' : targetContentW,
+                    fontSize: 22,
+                    lineHeight: 1.5,
+                    color: cmd.color || '#e2e8f0',
+                    textAlign: alignH === 'center' ? 'center' : (alignH === 'right' ? 'right' : 'left')
+                } as BoardScriptCommand;
+            }
+            return item as BoardScriptCommand;
+        });
+
+        const items = normalizedItems;
+        const gap = cmd.gap ?? 12;
         const itemSizes = items.map((childCmd) => ctx.estimateCommandSize(childCmd));
 
         let contentWidth = 0;
@@ -114,7 +154,7 @@ export const BoxCommandHandler: CommandHandler<Extract<BoardScriptCommand, { act
                 maxW = Math.max(maxW, sz.w);
                 totalH += sz.h + (idx > 0 ? gap : 0);
             });
-            contentWidth = maxW;
+            contentWidth = explicitBoxW !== undefined ? targetContentW : maxW;
             contentHeight = totalH;
         }
 
@@ -128,14 +168,21 @@ export const BoxCommandHandler: CommandHandler<Extract<BoardScriptCommand, { act
             ? calculatedHeight
             : ctx.resolver.resolveHeight(cmd.height as SizeCoord);
 
-        const { posX: rawX, posY: rawY } = ctx.resolver.resolveXY(cmd.x ?? 'center', cmd.y ?? 'center');
+        const xCoord: XCoord = (typeof cmd.x === 'object' && cmd.x !== null && 'x' in cmd.x)
+            ? cmd.x.x
+            : (cmd.x ?? 'center');
+        const yCoord: YCoord = (typeof cmd.x === 'object' && cmd.x !== null && 'y' in cmd.x)
+            ? cmd.x.y
+            : (cmd.y ?? 'center');
+
+        const { posX: rawX, posY: rawY } = ctx.resolver.resolveXY(xCoord, yCoord);
 
         let boxX = rawX;
-        if (cmd.x === 'center' || cmd.x === undefined) {
+        if (xCoord === 'center') {
             boxX = rawX - boxW / 2;
         }
         let boxY = rawY;
-        if (cmd.y === 'center' || cmd.y === undefined) {
+        if (yCoord === 'center') {
             boxY = rawY - boxH / 2;
         }
 
@@ -174,9 +221,9 @@ export const BoxCommandHandler: CommandHandler<Extract<BoardScriptCommand, { act
         if (isRow) {
             let startX = contentAreaX;
             if (alignH === 'center') {
-                startX = contentAreaX + (contentAreaW - contentWidth) / 2;
+                startX = contentAreaX + Math.max(0, (contentAreaW - contentWidth) / 2);
             } else if (alignH === 'right') {
-                startX = contentAreaX + contentAreaW - contentWidth;
+                startX = contentAreaX + Math.max(0, contentAreaW - contentWidth);
             }
 
             let currX = startX;
@@ -184,9 +231,9 @@ export const BoxCommandHandler: CommandHandler<Extract<BoardScriptCommand, { act
                 const sz = itemSizes[idx];
                 let itemY = contentAreaY;
                 if (alignV === 'center') {
-                    itemY = contentAreaY + (contentAreaH - sz.h) / 2;
+                    itemY = contentAreaY + Math.max(0, (contentAreaH - sz.h) / 2);
                 } else if (alignV === 'bottom') {
-                    itemY = contentAreaY + contentAreaH - sz.h;
+                    itemY = contentAreaY + Math.max(0, contentAreaH - sz.h);
                 }
 
                 const positionedCmd = ctx.offsetCommand(childCmd, currX, itemY, sz);
@@ -197,9 +244,9 @@ export const BoxCommandHandler: CommandHandler<Extract<BoardScriptCommand, { act
         } else {
             let startY = contentAreaY;
             if (alignV === 'center') {
-                startY = contentAreaY + (contentAreaH - contentHeight) / 2;
+                startY = contentAreaY + Math.max(0, (contentAreaH - contentHeight) / 2);
             } else if (alignV === 'bottom') {
-                startY = contentAreaY + contentAreaH - contentHeight;
+                startY = contentAreaY + Math.max(0, contentAreaH - contentHeight);
             }
 
             let currY = startY;
@@ -207,9 +254,17 @@ export const BoxCommandHandler: CommandHandler<Extract<BoardScriptCommand, { act
                 const sz = itemSizes[idx];
                 let itemX = contentAreaX;
                 if (alignH === 'center') {
-                    itemX = contentAreaX + (contentAreaW - sz.w) / 2;
+                    itemX = contentAreaX + Math.max(0, (contentAreaW - sz.w) / 2);
                 } else if (alignH === 'right') {
-                    itemX = contentAreaX + contentAreaW - sz.w;
+                    itemX = contentAreaX + Math.max(0, contentAreaW - sz.w);
+                }
+
+                if (childCmd.action === 'paragraph') {
+                    (childCmd as any).width = contentAreaW;
+                    sz.w = contentAreaW;
+                    if (alignH === 'left') {
+                        itemX = contentAreaX;
+                    }
                 }
 
                 const positionedCmd = ctx.offsetCommand(childCmd, itemX, currY, sz);

@@ -117,11 +117,32 @@ export const TextCommandHandler = createSimpleHandler<Extract<BoardScriptCommand
     }
 );
 
-export const ParagraphCommandHandler = createSimpleHandler<Extract<BoardScriptCommand, { action: 'paragraph' }>>(
-    'paragraph',
-    (cmd, ctx, id) => {
+export const ParagraphCommandHandler: CommandHandler<Extract<BoardScriptCommand, { action: 'paragraph' }>> = {
+    action: 'paragraph',
+    estimateSize: (cmd, ctx) => {
+        const width = cmd.width !== undefined ? ctx.resolver.resolveWidth(cmd.width) : 600;
+        const fontSize = cmd.fontSize !== undefined ? ctx.resolver.resolveSize(cmd.fontSize) : 24;
+        const lineHeight = cmd.lineHeight || 1.5;
+        const text = cmd.text || '';
+        const avgCharWidth = fontSize * 0.55;
+        const charsPerLine = Math.max(1, Math.floor(width / avgCharWidth));
+        const lines = Math.max(1, Math.ceil(text.length / charsPerLine));
+        const height = lines * fontSize * lineHeight;
+        return { w: width, h: height };
+    },
+    offset: (cmd, x, y, sz) => {
+        const copy = { ...cmd };
+        copy.x = x;
+        copy.y = y;
+        if (sz && sz.w) {
+            copy.width = sz.w;
+        }
+        return copy;
+    },
+    execute: (cmd, ctx) => {
+        const id = ctx.generateId();
         const { posX, posY } = ctx.resolver.resolveXY(cmd.x, cmd.y || 0);
-        return {
+        const item: DrawItem = {
             type: 'paragraph',
             id,
             text: cmd.text,
@@ -138,13 +159,12 @@ export const ParagraphCommandHandler = createSimpleHandler<Extract<BoardScriptCo
             textDecoration: cmd.textDecoration,
             underline: cmd.underline
         };
-    },
-    { w: 200, h: 100 },
-    (cmd, x, y) => {
-        cmd.x = x;
-        cmd.y = y;
+        if (ctx.isRecording) {
+            return ctx.enqueue(item);
+        }
+        return ctx.renderDirect(item);
     }
-);
+};
 
 export const CircleCommandHandler = createSimpleHandler<Extract<BoardScriptCommand, { action: 'circle' }>>(
     'circle',

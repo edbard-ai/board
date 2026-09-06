@@ -1,4 +1,4 @@
-import { XCoord, YCoord, SizeCoord } from '../types';
+import { XCoord, YCoord, SizeCoord, SemanticPoint } from '../types';
 
 export class CoordinateResolver {
     private logicalWidth: number;
@@ -38,8 +38,11 @@ export class CoordinateResolver {
         return 0;
     }
 
-    public resolveXY(x: XCoord, y: YCoord): { posX: number; posY: number } {
-        return { posX: this.resolveX(x), posY: this.resolveY(y) };
+    public resolveXY(x: XCoord | SemanticPoint, y?: YCoord): { posX: number; posY: number } {
+        if (typeof x === 'object' && x !== null && 'x' in x && 'y' in x) {
+            return { posX: this.resolveX(x.x), posY: this.resolveY(x.y) };
+        }
+        return { posX: this.resolveX(x as XCoord), posY: this.resolveY(y ?? 0) };
     }
 
     public resolveWidth(w: SizeCoord): number {
