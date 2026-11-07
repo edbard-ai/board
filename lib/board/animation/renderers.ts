@@ -1,5 +1,6 @@
 import { DrawItem, Point } from '../types';
 import katex from 'katex';
+import { getArrowHeadLines } from '../shapes';
 
 function createSvgElement(tag: string): SVGElement {
     return document.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -31,6 +32,20 @@ export function renderLine(item: Extract<DrawItem, { type: 'line' }>): SVGElemen
         line.setAttribute('stroke-dasharray', item.lineDash.join(','));
     }
     svg.appendChild(line);
+    return svg;
+}
+
+export function renderArrow(item: Extract<DrawItem, { type: 'arrow' }>): SVGElement {
+    const svg = createSvgContainer();
+    const { h1, h2 } = getArrowHeadLines(item.x1, item.y1, item.x2, item.y2, item.headSize ?? 12);
+    const path = createSvgElement('path');
+    path.setAttribute('d', `M ${item.x1} ${item.y1} L ${item.x2} ${item.y2} M ${h1.x} ${h1.y} L ${item.x2} ${item.y2} L ${h2.x} ${h2.y}`);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', item.color);
+    path.setAttribute('stroke-width', (item.lineWidth ?? 2).toString());
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(path);
     return svg;
 }
 
@@ -386,6 +401,7 @@ export function renderMath(item: Extract<DrawItem, { type: 'math' }>): HTMLEleme
 export function renderDrawItem(item: DrawItem): HTMLElement | SVGElement | null {
     switch (item.type) {
         case 'line': return renderLine(item as any);
+        case 'arrow': return renderArrow(item as any);
         case 'text': return renderText(item as any);
         case 'paragraph': return renderParagraph(item as any);
         case 'fillRect': return renderFillRect(item as any);

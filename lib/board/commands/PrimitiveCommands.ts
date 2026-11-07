@@ -223,8 +223,9 @@ export const ArrowCommandHandler = createSimpleHandler<Extract<BoardScriptComman
             x2: ctx.resolver.resolveX(cmd.x2),
             y2: ctx.resolver.resolveY(cmd.y2),
             color: cmd.color || ctx.currentColor,
-            headSize: cmd.headSize
-        } as any;
+            headSize: cmd.headSize,
+            lineWidth: ctx.currentLineWidth
+        };
     },
     { w: 100, h: 2 },
     (cmd, x, y, sz) => {

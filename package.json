@@ -1,6 +1,6 @@
 {
   "name": "edbard-board",
-  "version": "3.0.5",
+  "version": "3.0.7",
   "description": "A high-performance 2D and 3D interactive canvas animation & visualizer library.",
   "license": "MIT",
   "main": "./dist/index.js",
@@ -37,19 +37,8 @@
     "start": "next start",
     "lint": "eslint"
   },
-  "peerDependencies": {
-    "three": "^0.185.0"
-  },
-  "peerDependenciesMeta": {
-    "three": {
-      "optional": true
-    }
-  },
   "dependencies": {
     "katex": "^0.18.1",
-    "next": "16.2.12",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
     "three": "^0.185.0"
   },
   "devDependencies": {
@@ -61,6 +50,9 @@
     "@types/three": "^0.185.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
+    "next": "16.2.12",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
     "tailwindcss": "^4",
     "tsup": "^8.5.1",
     "typescript": "^5"

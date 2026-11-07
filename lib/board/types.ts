@@ -14,6 +14,7 @@ export interface SemanticPoint {
 
 export type DrawItem =
     | { type: 'line'; id: string; x1: number; y1: number; x2: number; y2: number; color: string; lineWidth: number; lineDash?: number[] }
+    | { type: 'arrow'; id: string; x1: number; y1: number; x2: number; y2: number; color: string; headSize?: number; lineWidth?: number }
     | { type: 'text'; id: string; text: string; x: number; y: number; fontSize: number; fontFamily: string; color: string; textAlign?: CanvasTextAlign; textBaseline?: CanvasTextBaseline; fontWeight?: string; fontStyle?: string; textDecoration?: string; underline?: boolean; maxWidth?: number }
     | { type: 'paragraph'; id: string; text: string; x: number; y: number; width: number; lineHeight: number; fontSize: number; fontFamily: string; color: string; textAlign?: CanvasTextAlign; fontWeight?: string; fontStyle?: string; textDecoration?: string; underline?: boolean }
     | { type: 'fillRect'; id: string; x: number; y: number; width: number; height: number; radius: number; fillColor: string }
